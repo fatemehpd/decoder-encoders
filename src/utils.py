@@ -1,18 +1,22 @@
+# TODO: add documantations and comments
 import torch
 import torchvision
 from dataset import CTDataset
 from torch.utils.data import DataLoader
 
+
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
     print("=> Saving checkpoint")
     torch.save(state, filename)
+
 
 def load_checkpoint(checkpoint, model):
     print("=> Loading checkpoint")
     model.load_state_dict(checkpoint["state_dict"])
 
+
 def get_loaders(
-  train_dir,
+    train_dir,
     train_maskdir,
     val_dir,
     val_maskdir,
@@ -23,7 +27,6 @@ def get_loaders(
         image_dir=train_dir,
         mask_dir=train_maskdir
     )
-
 
     train_loader = DataLoader(
         train_ds,
@@ -52,20 +55,20 @@ def get_loaders(
 def save_predictions_as_imgs(
     loader, model, folder="./saved_images", device="cuda"
 ):
-    
+
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
         with torch.no_grad():
             preds = torch.sigmoid(model(x))
             preds = preds.float()
-            
-        #FIXME: preds need to become masked images
+
+        # FIXME: preds need to become masked images
 
         torchvision.utils.save_image(
             preds, f"{folder}/pred_{idx}.png"
         )
-        #FIXME: save image from the main 2d sliced are not correct
+        # FIXME: save image from the main 2d sliced are not correct
         torchvision.utils.save_image(y, f"{folder}/save_{idx}.png")
 
     model.train()
