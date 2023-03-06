@@ -1,27 +1,65 @@
+'''models that use in this segmentation and classification'''
 import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
 
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super(DoubleConv, self).__init__()
+"""two serial cnn
+
+Returns:
+    tensor: feature matrix
+"""
+
+
+class Double2DConv(nn.Module):
+    """set input and output channels, kernel and stride sizes 
+
+    Args:
+        nn (_type_): _description_
+    """
+
+    def __init__(self, in_channels, out_channels,
+                 kernel_size=[3, 3],stride_size=1,padding=1):
+        """generate 2 serial convolution layers
+
+        Args:
+            in_channels (int): number of input channels
+            out_channels (int): number of output channels
+            kernel_size (list, optional): Defaults to [3, 3].
+            stride_size (int, optional): Defaults to 1.
+            padding (int, optional): Defaults to 1.
+        """
+        super(Double2DConv, self).__init__()
         self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, 1, 1, bias=False),
+            nn.Conv2d(in_channels, out_channels, kernel_size,
+                      stride_size, padding, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, 3, 1, 1, bias=False),
+            nn.Conv2d(in_channels, out_channels, kernel_size,
+                      stride_size, padding, bias=False),
             nn.BatchNorm2d(out_channels),
             nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
+        '''copmute the output of 2 cnn layers'''
         return self.conv(x)
 
-class UNET(nn.Module):
-    def __init__(
-            self, in_channels=3, out_channels=3, features=[64, 128, 256, 512],
-    ):
-        super(UNET, self).__init__()
+
+class UNET2D(nn.Module):
+    """basic Unet network implementation based on the below paper
+    https://doi.org/10.48550/arXiv.1505.04597
+    """
+    
+    def __init__(self, in_channels=3, out_channels=3,
+                 features=[64, 128, 256, 512]):
+        """setup 2-D unet network
+
+        Args:
+            in_channels (int, optional): Defaults to 3.
+            out_channels (int, optional):  Defaults to 3.
+            features (list, optional): Defaults to [64, 128, 256, 512].
+        """
+        super(UNET2D, self).__init__()
         self.ups = nn.ModuleList()
         self.downs = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -29,7 +67,7 @@ class UNET(nn.Module):
 
         # Down part of UNET
         for feature in features:
-            self.downs.append(DoubleConv(in_channels, feature))
+            self.downs.append(Double2DConv(in_channels, feature))
             in_channels = feature
 
         # Up part of UNET
@@ -39,12 +77,20 @@ class UNET(nn.Module):
                     feature*2, feature, kernel_size=2, stride=2,
                 )
             )
-            self.ups.append(DoubleConv(feature*2, feature))
+            self.ups.append(Double2DConv(feature*2, feature)) #two cnn on top 
 
-        self.bottleneck = DoubleConv(features[-1], features[-1]*2)
+        self.bottleneck = Double2DConv(features[-1], features[-1]*2)
         self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
 
     def forward(self, x):
+        """generate a segmentation image 
+
+        Args:
+            x (tensor): the image that would be segmented
+
+        Returns:
+            segmented image 
+        """
         skip_connections = []
 
         for down in self.downs:
@@ -69,13 +115,15 @@ class UNET(nn.Module):
 
         return x
 
+
 def test():
     x = torch.randn((3, 1, 512, 512))
-    model = UNET(in_channels=1, out_channels=1)
+    model = UNET2D(in_channels=1, out_channels=1)
     preds = model(x)
     assert preds.shape == x.shape
     print(preds.shape)
     print(x.shape)
+
 
 if __name__ == "__main__":
     test()
