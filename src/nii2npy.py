@@ -1,16 +1,16 @@
 """a program to convert a nifti file to a numpy form
 
 Atributes:
+------------
     path: str
         the directory where the nifti files are located
     images_path: list of str
         the path of nii images as a list 
 
-Methods:
-
-    
-
-    
+Methods: 
+------------
+    convert(w_level=40, w_width=120, save_to="..\converted dataset"):
+        convert and save nifti files to a numpy file
 """
 
 import os
