@@ -1,16 +1,13 @@
 
 import os
-from PIL import Image
+import torch.nn as nn
 from torch.utils.data import Dataset
-import numpy as np
 from torchvision import transforms
 import torch
-from torch.utils.data import DataLoader
 import nibabel as nib
 import numpy as np
-import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
-
+import torchvision
+import torchvision.transforms as TF
 
 def window_ct (ct_scan, w_level=40, w_width=120):
     w_min = w_level - w_width / 2
@@ -31,33 +28,37 @@ class CTDataset(Dataset):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.images = os.listdir(image_dir)
+        self.maskes = os.listdir(mask_dir)
 
     def __len__(self):
         return len(self.images)
 
     def __getitem__(self, index):
         img_path = os.path.join(self.image_dir, self.images[index])
-        mask_path = os.path.join(self.mask_dir, self.images[index])
-
-        image = nib.load(img_path)
-        image = image.get_fdata()
+        mask_path = os.path.join(self.mask_dir, self.maskes[index])
         
-        window_specs=[40,120] #Brain window
-        image = window_ct(image, window_specs[0], window_specs[1])
-     
-
-        mask = nib.load(mask_path)
-        mask = mask.get_fdata()
-       
+        image = np.load(img_path)
+        mask = np.load(mask_path)
 
         image = transforms.Compose([transforms.ToTensor()])(image)
         mask = transforms.Compose([transforms.ToTensor()])(mask)
         image = torch.unsqueeze(image, dim=1).float() 
         mask = torch.unsqueeze(mask, dim=1).float() 
 
+        Resize = TF.Resize(size = (128,128))
+
+        image = Resize(image)
+        mask = Resize(mask)
 
         return image, mask
-        
+    
+    
+if __name__=="__main__":
+    my_tensor = torch.randn((34,1,512, 512))
+    print("first" + str(my_tensor.size()))
+    Resize = TF.Resize(size = (128,128))
+    print("second"+str(T(my_tensor).size()))
+
 
 
     

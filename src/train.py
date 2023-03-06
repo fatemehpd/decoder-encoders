@@ -12,7 +12,7 @@ from utils import (
 )
 
 # Hyperparameters etc.
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-2
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_EPOCHS = 100
 NUM_WORKERS = 2
@@ -20,13 +20,12 @@ IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512  
 PIN_MEMORY = True
 LOAD_MODEL = False
-TRAIN_IMG_DIR = "data/train_cts/"
-TRAIN_MASK_DIR = "data/train_masks/"
-VAL_IMG_DIR = "data/val_cts/"
-VAL_MASK_DIR = "data/val_masks/"
+TRAIN_IMG_DIR = "./converted_dataset/train_cts"
+TRAIN_MASK_DIR = "./converted_dataset/train_masks"
+VAL_IMG_DIR = "./converted_dataset/val_cts"
+VAL_MASK_DIR = "./converted_dataset/val_masks"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler):
-    print(loader)
     loop = tqdm(loader)
     
 
@@ -37,7 +36,6 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         
         # forward
         with torch.cuda.amp.autocast(): 
-            print(data.shape)
             loss = loss_fn(model(data), targets)
 
         # backward
@@ -89,7 +87,7 @@ def main():
 
         # print some examples to a folder
         save_predictions_as_imgs(
-            val_loader, model, folder="saved_images/", device=DEVICE
+            val_loader, model, folder="./saved_images", device=DEVICE
         )
 
 

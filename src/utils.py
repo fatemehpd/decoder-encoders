@@ -50,17 +50,22 @@ def get_loaders(
 
 
 def save_predictions_as_imgs(
-    loader, model, folder="saved_images/", device="cuda"
+    loader, model, folder="./saved_images", device="cuda"
 ):
+    
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
         with torch.no_grad():
             preds = torch.sigmoid(model(x))
             preds = preds.float()
+            
+        #FIXME: preds need to become masked images
+
         torchvision.utils.save_image(
             preds, f"{folder}/pred_{idx}.png"
         )
-        torchvision.utils.save_image(y, f"{folder}{idx}.png")
+        #FIXME: save image from the main 2d sliced are not correct
+        torchvision.utils.save_image(y, f"{folder}/save_{idx}.png")
 
     model.train()

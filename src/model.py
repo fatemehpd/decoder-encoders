@@ -3,6 +3,12 @@ import torch
 import torch.nn as nn
 import torchvision.transforms.functional as TF
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+
 """two serial cnn
 
 Returns:
@@ -118,10 +124,11 @@ class UNET2D(nn.Module):
 
 def test():
     x = torch.randn((3, 1, 512, 512))
-    model = UNET2D(in_channels=1, out_channels=1)
+    x = x.to(device=DEVICE)
+    print(x.shape)
+    model = UNET(in_channels=1, out_channels=1)
     preds = model(x)
-    assert preds.shape == x.shape
-    print(preds.shape)
+    print("torch.cuda.max_memory_reserved: %fGB"%(torch.cuda.max_memory_reserved(0)/1024/1024/1024))
     print(x.shape)
 
 

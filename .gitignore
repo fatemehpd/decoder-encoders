@@ -1,3 +1,6 @@
 #ignore this directory
 dataSet/
-converted dataset/
+converted_dataset/
+saved_images/
+.vscode/
+__pycache__/
