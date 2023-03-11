@@ -122,7 +122,7 @@ def test():
     x = torch.randn((3, 1, 512, 512))
     x = x.to(device=DEVICE)
     print(x.shape)
-    model = UNET(in_channels=1, out_channels=1).to(device=DEVICE)
+    model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
     preds = model(x)
     print("torch.cuda.max_memory_reserved: %fGB" %
           (torch.cuda.max_memory_reserved(0)/1024/1024/1024))
