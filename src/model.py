@@ -20,7 +20,7 @@ class Double2DConv(nn.Module):
     """
 
     def __init__(self, in_channels, out_channels,
-                 kernel_size=[3, 3],stride_size=1,padding=1):
+                 kernel_size=[3, 3], stride_size=1, padding=1):
         """generate 2 serial convolution layers
 
         Args:
@@ -51,7 +51,7 @@ class UNET2D(nn.Module):
     """basic Unet network implementation based on the below paper
     https://doi.org/10.48550/arXiv.1505.04597
     """
-    
+
     def __init__(self, in_channels=3, out_channels=3,
                  features=[64, 128, 256, 512]):
         """setup 2-D unet network
@@ -79,7 +79,7 @@ class UNET2D(nn.Module):
                     feature*2, feature, kernel_size=2, stride=2,
                 )
             )
-            self.ups.append(Double2DConv(feature*2, feature)) #two cnn on top 
+            self.ups.append(Double2DConv(feature*2, feature))  # two cnn on top
 
         self.bottleneck = Double2DConv(features[-1], features[-1]*2)
         self.final_conv = nn.Conv2d(features[0], out_channels, kernel_size=1)
@@ -122,9 +122,10 @@ def test():
     x = torch.randn((3, 1, 512, 512))
     x = x.to(device=DEVICE)
     print(x.shape)
-    model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
+    model = UNET(in_channels=1, out_channels=1).to(device=DEVICE)
     preds = model(x)
-    print("torch.cuda.max_memory_reserved: %fGB"%(torch.cuda.max_memory_reserved(0)/1024/1024/1024))
+    print("torch.cuda.max_memory_reserved: %fGB" %
+          (torch.cuda.max_memory_reserved(0)/1024/1024/1024))
     print(x.shape)
 
 

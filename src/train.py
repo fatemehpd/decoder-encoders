@@ -1,3 +1,5 @@
+# TODO: add documantations and comments
+
 import torch
 from tqdm import tqdm
 import torch.nn as nn
@@ -16,8 +18,8 @@ LEARNING_RATE = 1e-2
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_EPOCHS = 100
 NUM_WORKERS = 2
-IMAGE_HEIGHT = 512  
-IMAGE_WIDTH = 512  
+IMAGE_HEIGHT = 512
+IMAGE_WIDTH = 512
 PIN_MEMORY = True
 LOAD_MODEL = False
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
@@ -25,17 +27,17 @@ TRAIN_MASK_DIR = "./converted_dataset/train_masks"
 VAL_IMG_DIR = "./converted_dataset/val_cts"
 VAL_MASK_DIR = "./converted_dataset/val_masks"
 
+
 def train_fn(loader, model, optimizer, loss_fn, scaler):
     loop = tqdm(loader)
-    
 
     for batch_idx, (data, targets) in enumerate(loop):
         data = data.to(device=DEVICE)
-        
+
         targets = targets.float().to(device=DEVICE)
-        
+
         # forward
-        with torch.cuda.amp.autocast(): 
+        with torch.cuda.amp.autocast():
             loss = loss_fn(model(data), targets)
 
         # backward
@@ -70,7 +72,6 @@ def main():
     if LOAD_MODEL:
         load_checkpoint(torch.load("my_checkpoint.pth.tar"), model)
 
-
     scaler = torch.cuda.amp.GradScaler()
 
     for epoch in range(NUM_EPOCHS):
@@ -81,7 +82,7 @@ def main():
         # save model
         checkpoint = {
             "state_dict": model.state_dict(),
-            "optimizer":optimizer.state_dict(),
+            "optimizer": optimizer.state_dict(),
         }
         save_checkpoint(checkpoint)
 
@@ -91,5 +92,5 @@ def main():
         )
 
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     main()
