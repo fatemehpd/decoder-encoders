@@ -58,9 +58,8 @@ def save_predictions_as_imgs(
         x = x.to(device=device)
         with torch.no_grad():
             preds = torch.sigmoid(model(x))
-            preds = preds.float()
+            preds = (preds > 0.5).float()
             
-        #FIXME: preds need to become masked images
 
         torchvision.utils.save_image(
             preds, f"{folder}/pred_{idx}.png"

@@ -3,7 +3,7 @@ from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from loss_funcs import DiceLoss, IoULoss, Combined_Loss 
-from model import UNET
+from model import UNET2D
 from utils import (
     load_checkpoint,
     save_checkpoint,
@@ -50,7 +50,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 def main():
 
-    model = UNET(in_channels=1, out_channels=1).to(DEVICE)
+    model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
 
     loss_fn1 = nn.CrossEntropyLoss()
     loss_fn2 = IoULoss()
