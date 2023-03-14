@@ -35,10 +35,14 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data = data.to(device=DEVICE)
 
         targets = targets.float().to(device=DEVICE)
-
+        # print('111111111', torch.max(targets))
+        # print('222222222', torch.max(data))
         # forward
         with torch.cuda.amp.autocast():
-            loss = loss_fn(model(data), targets)
+            pred = model(data)
+            
+            loss = loss_fn(pred, targets)
+            # print('222222222', loss)
 
         # backward
         optimizer.zero_grad()
@@ -52,11 +56,12 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 def main():
 
-    model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
+    model = UNET2D(in_channels=1, out_channels=2).to(DEVICE)
 
     loss_fn1 = nn.CrossEntropyLoss()
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
+    loss_fn4 = nn.MSELoss()
     loss_combined = Combined_Loss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 

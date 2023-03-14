@@ -36,9 +36,10 @@ class CTDataset(Dataset):
 
         Resize = TF.Resize(size=(128, 128))
 
-        image = Resize(image)
-        mask = Resize(mask)
-
+        image = Resize(image)/255.0
+        mask = Resize(mask)/255.0
+        # print('1111111111', torch.min(image) )
+        # print('222222222', torch.max(mask) )
         return image, mask
 
 
