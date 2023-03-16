@@ -55,7 +55,8 @@ class nii2npy():
         splited_path = path.split("\\")
         return splited_path[-1].replace(extentinon, "")
 
-    def convert(self, w_level=40, w_width=120, dir_name="converted_dataset"):
+    def convert(self, w_level=40, w_width=120,
+                dir_name="converted_dataset", isMask = False):
         """convert and save nifti as numpy array
 
         Args:
@@ -79,19 +80,24 @@ class nii2npy():
         for path in self.images_path:
             ct = nib.load(path)
             ct = ct.get_fdata()
-            ct = self._window(ct, w_level, w_width)
+            if not isMask:
+                ct = self._window(ct, w_level, w_width)
             name = self._get_name(path)
             np.save(os.path.join(save_to, name), ct)
+            print(str(name) +'   '+str(ct.max()) +"   " +str(ct.min()))
 
 
 if __name__ == "__main__":
     #farayand path
-    #paths = ["../dataSet/train_cts", "../dataSet/train_masks",
-    #         "../dataSet/val_cts", "../dataSet/val_masks"]
+    #paths = ["..\dataSet\train_cts", "..\dataSet\train_masks",
+    #         "..\dataSet\val_cts", "..\dataSet\val_masks"]
     
     #mohammad path
-    paths = ["../dataSet/ct_scans", "../dataSet/masks"]
+    #paths = ["..\dataSet\ct_scans", "..\dataSet\masks"]
+    
+    #test path
+    paths = ["..\\dataSet\\masks"]
     for path in paths:
         data = nii2npy(path)
-        save_path = os.path.join("converted_dataset", path.split("/")[-1])
-        data.convert(dir_name=save_path)
+        save_path = os.path.join("test_converted_dataset", path.split("\\")[-1])
+        data.convert(dir_name=save_path, isMask=True)
