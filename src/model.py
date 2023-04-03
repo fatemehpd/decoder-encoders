@@ -65,7 +65,9 @@ class UNET2D(nn.Module):
         self.ups = nn.ModuleList()
         self.downs = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.softmax = nn.Softmax()
+        self.softmax = nn.Softmax2d()
+        self.sigmoid = nn.Sigmoid()
+        self.relu = nn.ReLU()
 
         # Down part of UNET
         for feature in features:
@@ -114,6 +116,10 @@ class UNET2D(nn.Module):
             x = self.ups[idx+1](concat_skip)
 
         x = self.final_conv(x)
+        
+        #x = self.softmax(x)
+        print(x.shape)
+        #x = self.sigmoid(x)
 
         return x
 
@@ -121,12 +127,12 @@ class UNET2D(nn.Module):
 def test():
     x = torch.randn((3, 1, 512, 512))
     x = x.to(device=DEVICE)
-    print(x.shape)
+    
     model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
     preds = model(x)
     print("torch.cuda.max_memory_reserved: %fGB" %
           (torch.cuda.max_memory_reserved(0)/1024/1024/1024))
-    print(x.shape)
+    
 
 
 if __name__ == "__main__":

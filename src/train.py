@@ -35,10 +35,13 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data = data.to(device=DEVICE)
 
         targets = targets.float().to(device=DEVICE)
-
+        # print('111111111', torch.max(targets))
+        # print('222222222', torch.max(data))
         # forward
         with torch.cuda.amp.autocast():
-            loss = loss_fn(model(data), targets)
+            pred = model(data)
+            loss = loss_fn(pred, targets)
+            # print('222222222', loss)
 
         # backward
         optimizer.zero_grad()
@@ -54,9 +57,10 @@ def main():
 
     model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
 
-    loss_fn1 = nn.CrossEntropyLoss()
+    loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
+    loss_fn4 = nn.MSELoss()
     loss_combined = Combined_Loss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -80,16 +84,17 @@ def main():
         train_fn(train_loader, model, optimizer, loss_fn1, scaler)
 
         # save model
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-        }
-        save_checkpoint(checkpoint)
+        if(epoch % 10 == 0):
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
+            save_checkpoint(checkpoint)
 
-        # print some examples to a folder
-        save_predictions_as_imgs(
-            val_loader, model, folder="./saved_images", device=DEVICE
-        )
+            # print some examples to a folder
+            save_predictions_as_imgs(
+                val_loader, model, folder="./saved_images", device=DEVICE
+            )
 
 
 if __name__ == "__main__":

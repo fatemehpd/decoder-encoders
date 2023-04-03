@@ -1,5 +1,6 @@
 # TODO: add documantations and comments
 import torch
+import torch.nn as nn
 import torchvision
 from dataset import CTDataset
 from torch.utils.data import DataLoader
@@ -53,19 +54,17 @@ def get_loaders(
 
 
 def save_predictions_as_imgs(
-    loader, model, folder="./saved_images", device="cuda"
-):
+    loader, model, folder="./saved_images", device="cuda"):
 
     model.eval()
     for idx, (x, y) in enumerate(loader):
         x = x.to(device=device)
         with torch.no_grad():
-            preds = torch.sigmoid(model(x))
+            preds = model(x)
+            preds = nn.Sigmoid()(preds)
             preds = (preds > 0.5).float()
 
-        torchvision.utils.save_image(
-            preds, f"{folder}/pred_{idx}.png"
-        )
+        torchvision.utils.save_image(preds, f"{folder}/pred_{idx}.png")
         # FIXME: save image from the main 2d sliced are not correct
         torchvision.utils.save_image(y, f"{folder}/save_{idx}.png")
 

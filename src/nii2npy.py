@@ -89,15 +89,23 @@ class nii2npy():
 
 if __name__ == "__main__":
     #farayand path
-    #paths = ["..\dataSet\train_cts", "..\dataSet\train_masks",
-    #         "..\dataSet\val_cts", "..\dataSet\val_masks"]
+    mask_paths = ["..\\dataSet\\train_masks", "..\\dataSet\\val_masks"]
+    train_paths = ["..\\dataSet\\train_cts", "..\\dataSet\\val_cts"]         
     
     #mohammad path
     #paths = ["..\dataSet\ct_scans", "..\dataSet\masks"]
     
     #test path
-    paths = ["..\\dataSet\\masks"]
-    for path in paths:
+    #paths = ["..\\dataSet\\masks"]
+
+    for path in train_paths:
+        print("path to canvert is: " + path)
         data = nii2npy(path)
-        save_path = os.path.join("test_converted_dataset", path.split("\\")[-1])
+        save_path = os.path.join("converted_dataset", path.split("\\")[-1])
+        data.convert(dir_name=save_path, isMask=False)
+
+    for path in mask_paths:
+        print("path to canvert is: " + path)
+        data = nii2npy(path)
+        save_path = os.path.join("converted_dataset", path.split("\\")[-1])
         data.convert(dir_name=save_path, isMask=True)
