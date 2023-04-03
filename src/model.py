@@ -116,7 +116,10 @@ class UNET2D(nn.Module):
             x = self.ups[idx+1](concat_skip)
 
         x = self.final_conv(x)
-        
+        # TODO: make change in code to mak this class modular 
+        #check number of classes to segment and toggle softmax
+        #check kind of loss function and toggle sigmoid
+        #get input to print output shape or not
         #x = self.softmax(x)
         #print(x.shape)
         #x = self.sigmoid(x)
@@ -125,6 +128,8 @@ class UNET2D(nn.Module):
 
 
 def test():
+    #TODO: add comment about specifications of test function and replace
+    #test function to test folder
     x = torch.randn((3, 1, 512, 512))
     x = x.to(device=DEVICE)
     

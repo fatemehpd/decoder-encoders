@@ -80,7 +80,7 @@ def main():
         train_fn(train_loader, model, optimizer, loss_fn1, scaler)
 
         # save model
-        if(epoch % 10 == 0):
+        if(epoch % 3 == 0):
             checkpoint = {
                 "state_dict": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
