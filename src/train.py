@@ -40,7 +40,6 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         # forward
         with torch.cuda.amp.autocast():
             pred = model(data)
-            
             loss = loss_fn(pred, targets)
             # print('222222222', loss)
 
@@ -56,9 +55,9 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 def main():
 
-    model = UNET2D(in_channels=1, out_channels=2).to(DEVICE)
+    model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
 
-    loss_fn1 = nn.CrossEntropyLoss()
+    loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
     loss_fn4 = nn.MSELoss()
@@ -85,16 +84,17 @@ def main():
         train_fn(train_loader, model, optimizer, loss_fn1, scaler)
 
         # save model
-        checkpoint = {
-            "state_dict": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-        }
-        save_checkpoint(checkpoint)
+        if(epoch % 10 == 0):
+            checkpoint = {
+                "state_dict": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+            }
+            save_checkpoint(checkpoint)
 
-        # print some examples to a folder
-        save_predictions_as_imgs(
-            val_loader, model, folder="./saved_images", device=DEVICE
-        )
+            # print some examples to a folder
+            save_predictions_as_imgs(
+                val_loader, model, folder="./saved_images", device=DEVICE
+            )
 
 
 if __name__ == "__main__":
