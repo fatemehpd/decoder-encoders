@@ -118,7 +118,7 @@ class UNET2D(nn.Module):
         x = self.final_conv(x)
         
         #x = self.softmax(x)
-        print(x.shape)
+        #print(x.shape)
         #x = self.sigmoid(x)
 
         return x

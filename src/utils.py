@@ -63,9 +63,7 @@ def save_predictions_as_imgs(
             preds = model(x)
             preds = nn.Sigmoid()(preds)
             preds = (preds > 0.5).float()
-
         torchvision.utils.save_image(preds, f"{folder}/pred_{idx}.png")
-        # FIXME: save image from the main 2d sliced are not correct
         torchvision.utils.save_image(y, f"{folder}/save_{idx}.png")
 
     model.train()

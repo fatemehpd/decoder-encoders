@@ -14,7 +14,7 @@ from utils import (
 )
 
 # Hyperparameters etc.
-LEARNING_RATE = 1e-2
+LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_EPOCHS = 100
 NUM_WORKERS = 2
@@ -35,14 +35,10 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data = data.to(device=DEVICE)
 
         targets = targets.float().to(device=DEVICE)
-        # print('111111111', torch.max(targets))
-        # print('222222222', torch.max(data))
         # forward
         with torch.cuda.amp.autocast():
             pred = model(data)
             loss = loss_fn(pred, targets)
-            # print('222222222', loss)
-
         # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
