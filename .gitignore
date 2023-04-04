@@ -5,3 +5,4 @@ saved_images/
 .vscode/
 __pycache__/
 **/my_checkpoint.pth.tar
+New_folder/
