@@ -7,25 +7,35 @@ from torch.utils.data import DataLoader
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
-    '''to save parameters of checkpoint '''
     print("=> Saving checkpoint")
     torch.save(state, filename)
 
 
 def load_checkpoint(checkpoint, model):
-    ''' to load parameters from last checkpoint '''
     print("=> Loading checkpoint")
     model.load_state_dict(checkpoint["state_dict"])
 
-# TODO: add method to load parameters from specific checkpoint
 
+def get_loaders(
+    train_dir,
+    train_maskdir,
+    val_dir,
+    val_maskdir,
+    num_workers=4,
+    pin_memory=True,
+):
+    train_ds = CTDataset(
+        image_dir=train_dir,
+        mask_dir=train_maskdir
+    )
 
-def get_loaders(train_dir, train_maskdir, val_dir,
-                val_maskdir, num_workers=4, pin_memory=True):
-                
-    train_ds = CTDataset(image_dir=train_dir, mask_dir=train_maskdir)
-    train_loader = DataLoader(train_ds,batch_size=None,num_workers=num_workers,
-        pin_memory=pin_memory,shuffle=True)
+    train_loader = DataLoader(
+        train_ds,
+        batch_size=None,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+        shuffle=True,
+    )
 
     val_ds = CTDataset(
         image_dir=val_dir,
@@ -44,7 +54,7 @@ def get_loaders(train_dir, train_maskdir, val_dir,
 
 
 def save_predictions_as_imgs(
-        loader, model, folder="./saved_images", device="cuda"):
+    loader, model, folder="./saved_images", device="cuda"):
 
     model.eval()
     for idx, (x, y) in enumerate(loader):
@@ -53,7 +63,9 @@ def save_predictions_as_imgs(
             preds = model(x)
             preds = nn.Sigmoid()(preds)
             preds = (preds > 0.5).float()
+
         torchvision.utils.save_image(preds, f"{folder}/pred_{idx}.png")
+        # FIXME: save image from the main 2d sliced are not correct
         torchvision.utils.save_image(y, f"{folder}/save_{idx}.png")
 
     model.train()

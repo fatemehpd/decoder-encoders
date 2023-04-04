@@ -29,22 +29,21 @@ class CTDataset(Dataset):
         image = np.load(img_path)
         mask = np.load(mask_path)
 
-        #TODO: add comment about transform and the reason of unsqueeze
         image = transforms.Compose([transforms.ToTensor()])(image)
         mask = transforms.Compose([transforms.ToTensor()])(mask)
-
         image = torch.unsqueeze(image, dim=1).float()
         mask = torch.unsqueeze(mask, dim=1).float()
 
-        Resize = TF.Resize(size=(128, 128)) # do resize to fit data on GPU's RAM
-        image = Resize(image)/255.0 #normalize value between 0 and 1
+        Resize = TF.Resize(size=(128, 128))
+
+        image = Resize(image)/255.0
         mask = Resize(mask)/255.0
+        # print('1111111111', torch.min(image) )
+        # print('222222222', torch.max(mask) )
         return image, mask
 
 
 if __name__ == "__main__":
-    #TODO: add comment about specifications of test function and replace
-    #test function to test folder
     my_tensor = torch.randn((34, 1, 512, 512))
     print("first" + str(my_tensor.size()))
     Resize = TF.Resize(size=(128, 128))

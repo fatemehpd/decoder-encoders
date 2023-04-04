@@ -14,14 +14,14 @@ from utils import (
 )
 
 # Hyperparameters etc.
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-2
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_EPOCHS = 100
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
 TRAIN_MASK_DIR = "./converted_dataset/train_masks"
 VAL_IMG_DIR = "./converted_dataset/val_cts"
@@ -35,10 +35,14 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         data = data.to(device=DEVICE)
 
         targets = targets.float().to(device=DEVICE)
+        # print('111111111', torch.max(targets))
+        # print('222222222', torch.max(data))
         # forward
         with torch.cuda.amp.autocast():
             pred = model(data)
             loss = loss_fn(pred, targets)
+            # print('222222222', loss)
+
         # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
@@ -80,7 +84,7 @@ def main():
         train_fn(train_loader, model, optimizer, loss_fn1, scaler)
 
         # save model
-        if(epoch % 3 == 0):
+        if(epoch % 10 == 0):
             checkpoint = {
                 "state_dict": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
