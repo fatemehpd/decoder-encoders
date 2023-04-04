@@ -4,9 +4,7 @@ import torch.nn as nn
 from torch.utils.data import Dataset
 from torchvision import transforms
 import torch
-import nibabel as nib
 import numpy as np
-import torchvision
 import torchvision.transforms as TF
 
 
@@ -43,9 +41,8 @@ class CTDataset(Dataset):
 
 
 if __name__ == "__main__":
-    #TODO: add comment about specifications of test function and replace
-    #test function to test folder
+    #this is a test for check resize funcionality 
     my_tensor = torch.randn((34, 1, 512, 512))
     print("first" + str(my_tensor.size()))
     Resize = TF.Resize(size=(128, 128))
-    print("second"+str(TF(my_tensor).size()))
+    print("second"+str(Resize(my_tensor).size()))

@@ -128,15 +128,17 @@ class UNET2D(nn.Module):
 
 
 def test():
-    #TODO: add comment about specifications of test function and replace
-    #test function to test folder
+    #validation for usage of UNET model
     x = torch.randn((3, 1, 512, 512))
     x = x.to(device=DEVICE)
-    
     model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
     preds = model(x)
+    print(x.size())
+    print(preds.size())
+
+    #memory usage test
     print("torch.cuda.max_memory_reserved: %fGB" %
-          (torch.cuda.max_memory_reserved(0)/1024/1024/1024))
+          (torch.cuda.max_memory_reserved(0)/1024/1024/1024)) 
     
 
 
