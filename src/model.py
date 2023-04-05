@@ -52,7 +52,7 @@ class UNET2D(nn.Module):
     https://doi.org/10.48550/arXiv.1505.04597
     """
 
-    def __init__(self, in_channels=3, out_channels=3,
+    def __init__(self, in_channels=1, out_channels=1,
                  features=[64, 128, 256, 512]):
         """setup 2-D unet network
 
@@ -116,11 +116,12 @@ class UNET2D(nn.Module):
             x = self.ups[idx+1](concat_skip)
 
         x = self.final_conv(x)
+
+        if(out_channels > 1):
+            x = self.softmax(x)
+
         # TODO: make change in code to mak this class modular 
-        #check number of classes to segment and toggle softmax
         #check kind of loss function and toggle sigmoid
-        #get input to print output shape or not
-        #x = self.softmax(x)
         #print(x.shape)
         #x = self.sigmoid(x)
 
