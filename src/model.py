@@ -52,7 +52,7 @@ class UNET2D(nn.Module):
     https://doi.org/10.48550/arXiv.1505.04597
     """
 
-    def __init__(self, in_channels=1, out_channels=1,
+    def __init__(self, in_channels=1, out_channels=1, loss = None,
                  features=[64, 128, 256, 512]):
         """setup 2-D unet network
 
@@ -67,7 +67,8 @@ class UNET2D(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.softmax = nn.Softmax2d()
         self.sigmoid = nn.Sigmoid()
-        self.relu = nn.ReLU()
+        self.out_channels = out_channels
+        self.loss = loss
 
         # Down part of UNET
         for feature in features:
@@ -117,19 +118,21 @@ class UNET2D(nn.Module):
 
         x = self.final_conv(x)
 
-        if(out_channels > 1):
-            x = self.softmax(x)
-
-        # TODO: make change in code to mak this class modular 
-        #check kind of loss function and toggle sigmoid
-        #print(x.shape)
-        #x = self.sigmoid(x)
+        if(self.loss != None):
+            if(self.out_channels > 1):
+                x = self.softmax(x)
+            else:
+                if(isinstance(self.loss, nn.BCEWithLogitsLoss) == False):
+                    x = self.sigmoid(x)
+        
+        # else:
+        #     # use your custom final layer funtion
 
         return x
 
 
 def test():
-    #validation for usage of UNET model
+    # validation for usage of UNET model
     x = torch.randn((3, 1, 512, 512))
     x = x.to(device=DEVICE)
     model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
@@ -137,7 +140,7 @@ def test():
     print(x.size())
     print(preds.size())
 
-    #memory usage test
+    # memory usage test
     print("torch.cuda.max_memory_reserved: %fGB" %
           (torch.cuda.max_memory_reserved(0)/1024/1024/1024)) 
     

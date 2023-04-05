@@ -14,6 +14,7 @@ from utils import (
 )
 
 # Hyperparameters etc.
+
 LEARNING_RATE = 1e-4
 
 # use GPU if available, otherwise use CPU
@@ -21,8 +22,6 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 NUM_EPOCHS = 100
 NUM_WORKERS = 2
-IMAGE_HEIGHT = 128
-IMAGE_WIDTH = 128
 
  # flag to enable memory pinning for faster data transfer to GPU
 PIN_MEMORY = True
@@ -80,14 +79,15 @@ def main():
     Main function to load data, define model and optimizer, and train the model.
     """
 
-    model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
-
     # define the loss functions
     loss_fn1 = nn.BCEWithLogitsLoss()  # binary cross-entropy loss with logits
     loss_fn2 = IoULoss()  # custom Intersection over Union (IoU) loss
     loss_fn3 = DiceLoss()  # custom Dice loss
     loss_fn4 = nn.MSELoss()  # mean squared error loss
     loss_combined = Combined_Loss()  # combined loss function
+    loss_used = loss_fn1
+
+    model = UNET2D(in_channels=1, out_channels=1, loss = loss_used).to(DEVICE)
 
     # initialize the optimizer
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
@@ -112,7 +112,7 @@ def main():
     for epoch in range(NUM_EPOCHS):
         print(f"Number of Epoch: {epoch}")
 
-        train_fn(train_loader, model, optimizer, loss_fn1, scaler)
+        train_fn(train_loader, model, optimizer, loss_used, scaler)
 
         # save model
         if(epoch % 3 == 0):
