@@ -5,42 +5,46 @@ import torchvision.transforms.functional as TF
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-"""two serial cnn
-
-Returns:
-    tensor: feature matrix
-"""
-
-
 class Double2DConv(nn.Module):
-    """set input and output channels, kernel and stride sizes 
+    '''two serial 2D CNN '''
 
-    Args:
-        nn (_type_): _description_
-    """
-
-    def __init__(self, in_channels, out_channels,
-                 kernel_size=[3, 3], stride_size=1, padding=1):
+    def __init__(self, in_channels, out_channels,batchNorm=True,
+                 kernel_size=[3, 3], stride_size=1, padding=1,
+                 activation=nn.ReLU(inplace=True)):
         """generate 2 serial convolution layers
 
         Args:
             in_channels (int): number of input channels
             out_channels (int): number of output channels
+            batchNorm (boolean, optuional): have batchnormalization
+            layer or not
             kernel_size (list, optional): Defaults to [3, 3].
             stride_size (int, optional): Defaults to 1.
             padding (int, optional): Defaults to 1.
+            activation (torch.nn.modules.activation, optional) specific
+            activation function
         """
         super(Double2DConv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size,
-                      stride_size, padding, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_channels, out_channels, kernel_size,
-                      stride_size, padding, bias=False),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
+        if batchNorm:
+            self.conv = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                nn.BatchNorm2d(out_channels),
+                activation,
+                nn.Conv2d(out_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                nn.BatchNorm2d(out_channels),
+                activation,
+            )
+        else:
+            self.conv = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                activation,
+                nn.Conv2d(out_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                activation,
+            )
 
     def forward(self, x):
         '''copmute the output of 2 cnn layers'''
@@ -49,12 +53,11 @@ class Double2DConv(nn.Module):
 
 class UNET2D(nn.Module):
     """basic Unet network implementation based on the below paper
-    https://doi.org/10.48550/arXiv.1505.04597
-    """
+    https://doi.org/10.48550/arXiv.1505.04597"""
 
     def __init__(self, in_channels=3, out_channels=3,
                  features=[64, 128, 256, 512]):
-        """setup 2-D unet network
+        """setup 2-D U_NET network
 
         Args:
             in_channels (int, optional): Defaults to 3.
@@ -67,7 +70,6 @@ class UNET2D(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.softmax = nn.Softmax2d()
         self.sigmoid = nn.Sigmoid()
-        self.relu = nn.ReLU()
 
         # Down part of UNET
         for feature in features:
@@ -126,6 +128,80 @@ class UNET2D(nn.Module):
 
         return x
 
+
+class Double3DConv(nn.Module):
+    '''two serial 3D CNN '''
+
+    def __init__(self, in_channels, out_channels,batchNorm=True,   
+                 kernel_size=[3, 3], stride_size=1, padding=1,
+                 activation=nn.ReLU(inplace=True)):
+        """generate 2 serial convolution layers
+
+        Args:
+            in_channels (int): number of input channels
+            out_channels (int): number of output channels
+            batchNorm (boolean, optuional): have batchnormalization
+            layer or not
+            kernel_size (list, optional): Defaults to [3, 3].
+            stride_size (int, optional): Defaults to 1.
+            padding (int, optional): Defaults to 1.
+            activation (torch.nn.modules.activation, optional) specific
+            activation function
+        """
+        super(Double3DConv, self).__init__()
+        if batchNorm:
+            self.conv = nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                nn.BatchNorm3d(out_channels),
+                activation,
+                nn.Conv3d(out_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                nn.BatchNorm3d(out_channels),
+                activation
+                )
+        else:
+            self.conv = nn.Sequential(
+                nn.Conv3d(in_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                activation,
+                nn.Conv3d(out_channels, out_channels, kernel_size,
+                        stride_size, padding, bias=False),
+                activation
+                )
+
+    def forward(self, x):
+        '''copmute the output of 2 CNN layers'''
+        return self.conv(x)
+
+class encoder3D(nn.Module):
+
+    def __init__(self,in_channels=3, out_channels=3,kernel=[3, 3, 3, 3],
+                 padding=[1,1,1,1],stride=[1,1,1,1],batchNorm=True,
+                 features=[64, 128, 256, 512] ):
+        
+        super(encoder3D).__init__()
+        self.downs = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.in_channels=in_channels
+        self.batchNorm=batchNorm
+        self.padding=padding
+        for i,feature in enumerate(features):
+            self.downs.append(Double3DConv(self.in_channels,
+                                           feature,
+                                           batchNorm=self.batchNorm,   
+                                           kernel_size=kernel[i],
+                                           stride_size=stride[i],
+                                           padding=self.padding[i],
+                                           ))
+            self.in_channels = feature
+        self.bottleneck = Double3DConv(features[-1], features[-1]*2)
+    def forward(self,x):
+
+        for down in self.downs:
+            x=down(x)
+            x=self.pool(x)
+        x = self.bottleneck(x)
 
 def test():
     #TODO: add comment about specifications of test function and replace
