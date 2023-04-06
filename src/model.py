@@ -178,6 +178,7 @@ class Double3DConv(nn.Module):
         kernel_size=3,
         stride_size=1,
         padding=1,
+        dilation = 1,
         activation=nn.ReLU(inplace=True),
     ):
         """generate 2 serial convolution layers
@@ -200,8 +201,9 @@ class Double3DConv(nn.Module):
                     in_channels,
                     out_channels,
                     kernel_size,
-                    stride_size,
-                    padding,
+                    stride=stride_size,
+                    padding=padding,
+                    dilation=dilation,
                     bias=False,
                 ),
                 nn.BatchNorm3d(out_channels),
@@ -210,8 +212,9 @@ class Double3DConv(nn.Module):
                     out_channels,
                     out_channels,
                     kernel_size,
-                    stride_size,
-                    padding,
+                    stride=stride_size,
+                    padding=padding,
+                    dilation=dilation,
                     bias=False,
                 ),
                 nn.BatchNorm3d(out_channels),
@@ -223,8 +226,9 @@ class Double3DConv(nn.Module):
                     in_channels,
                     out_channels,
                     kernel_size,
-                    stride_size,
-                    padding,
+                    stride=stride_size,
+                    padding=padding,
+                    dilation=dilation,
                     bias=False,
                 ),
                 activation,
@@ -232,8 +236,9 @@ class Double3DConv(nn.Module):
                     out_channels,
                     out_channels,
                     kernel_size,
-                    stride_size,
-                    padding,
+                    stride=stride_size,
+                    padding=padding,
+                    dilation=dilation,
                     bias=False,
                 ),
                 activation,
@@ -245,7 +250,7 @@ class Double3DConv(nn.Module):
 
 
 class encoder3D(nn.Module):
-    '''a 3D encoder with bottleneck '''
+    """a 3D encoder with bottleneck"""
 
     def __init__(
         self,
@@ -257,8 +262,7 @@ class encoder3D(nn.Module):
         batchNorm=True,
         features=[64, 128, 256, 512],
     ):
-        """_summary_
-
+        """
         Args:
             in_channels (int, optional): Defaults to 3.
             out_channels (int, optional): Defaults to 3.
@@ -296,7 +300,56 @@ class encoder3D(nn.Module):
             x = down(x)
             x = self.pool(x)
         x = self.bottleneck(x)
+        
+class UNET3D(nn.Module):
+    def __init__(
+        self,
+        in_channels=3,
+        out_channels=3,
+        kernel=[3, 3, 3, 3],
+        padding=[1, 1, 1, 1],
+        stride=[1, 1, 1, 1],
+        batchNorm=True,
+        features=[64, 128, 256, 512],
+    ):
+        """
+        Args:
+            in_channels (int, optional): Defaults to 3.
+            out_channels (int, optional): Defaults to 3.
+            kernel (list, optional): Defaults to [3, 3, 3, 3].
+            padding (list, optional): Defaults to [1, 1, 1, 1].
+            stride (list, optional): Defaults to [1, 1, 1, 1].
+            batchNorm (bool, optional): if you want batch normalization
+            layers after 3D CNN Defaults to True.
+            features (list, optional): number of feature after each
+            maxpool to [64, 128, 256, 512].
+        """
+        super(encoder3D).__init__()
+        self.downs = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.in_channels = in_channels
+        self.batchNorm = batchNorm
+        self.padding = padding
+        for i, feature in enumerate(features):
+            self.downs.append(
+                Double3DConv(
+                    self.in_channels,
+                    feature,
+                    batchNorm=self.batchNorm,
+                    kernel_size=kernel[i],
+                    stride_size=stride[i],
+                    padding=self.padding[i],
+                )
+            )
+            self.in_channels = feature
+        self.bottleneck = Double3DConv(features[-1], features[-1] * 2)
 
+    def forward(self, x):
+
+        for down in self.downs:
+            x = down(x)
+            x = self.pool(x)
+        x = self.bottleneck(x)
 
 def test():
     # TODO: add comment about specifications of test function and replace
