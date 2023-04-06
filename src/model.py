@@ -178,7 +178,7 @@ class Double3DConv(nn.Module):
         kernel_size=3,
         stride_size=1,
         padding=1,
-        dilation = 1,
+        dilation=1,
         activation=nn.ReLU(inplace=True),
     ):
         """generate 2 serial convolution layers
@@ -276,7 +276,7 @@ class encoder3D(nn.Module):
         """
         super(encoder3D).__init__()
         self.downs = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
         self.in_channels = in_channels
         self.batchNorm = batchNorm
         self.padding = padding
@@ -300,7 +300,8 @@ class encoder3D(nn.Module):
             x = down(x)
             x = self.pool(x)
         x = self.bottleneck(x)
-        
+
+
 class UNET3D(nn.Module):
     def __init__(
         self,
@@ -324,12 +325,15 @@ class UNET3D(nn.Module):
             features (list, optional): number of feature after each
             maxpool to [64, 128, 256, 512].
         """
-        super(encoder3D).__init__()
+        super(UNET3D, self).__init__()
         self.downs = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.ups = nn.ModuleList()
+        self.pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
         self.in_channels = in_channels
         self.batchNorm = batchNorm
         self.padding = padding
+
+        # Down part of UNET
         for i, feature in enumerate(features):
             self.downs.append(
                 Double3DConv(
@@ -342,14 +346,47 @@ class UNET3D(nn.Module):
                 )
             )
             self.in_channels = feature
+
+        # Up part of UNET
+        for feature in reversed(features):
+            self.ups.append(
+                nn.ConvTranspose3d(
+                    feature * 2,
+                    feature,
+                    kernel_size=(1, 2, 2),
+                    stride=(1, 2, 2),
+                )
+            )
+            self.ups.append(Double3DConv(feature * 2, feature))
+
         self.bottleneck = Double3DConv(features[-1], features[-1] * 2)
+        self.final_conv = Double3DConv(features[0], out_channels=out_channels)
 
     def forward(self, x):
 
+        skip_connections = []
+
         for down in self.downs:
             x = down(x)
+            skip_connections.append(x)
             x = self.pool(x)
+
         x = self.bottleneck(x)
+        skip_connections = skip_connections[::-1]
+
+        for idx in range(0, len(self.ups), 2):
+            x = self.ups[idx](x)
+            skip_connection = skip_connections[idx // 2]
+
+            if x.shape != skip_connection.shape:
+                x = TF.resize(x, size=skip_connection.shape[2:])
+
+            concat_skip = torch.cat((skip_connection, x), dim=1)
+            x = self.ups[idx + 1](concat_skip)
+
+        x = self.final_conv(x)
+        return x
+
 
 def test():
     # TODO: add comment about specifications of test function and replace
@@ -366,4 +403,16 @@ def test():
 
 
 if __name__ == "__main__":
-    test()
+    img1 = torch.randint(0, 10, (1, 3, 10))
+    print(img1.shape)
+
+    img2 = torch.randint(0, 10, (1, 3, 10))
+    print(img2.shape)
+
+    img3 = torch.cat((img1, img2), dim=0)
+    print(img3.shape)
+
+    img4 = torch.randn(1, 1, 50, 128, 128)
+    print(img4.shape)
+    model = UNET3D(in_channels=1, out_channels=1)
+    model(img4)
