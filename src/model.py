@@ -174,10 +174,11 @@ class Double3DConv(nn.Module):
         self,
         in_channels,
         out_channels,
-        batchNorm=True,
+        batchNorm=False,
         kernel_size=3,
         stride_size=1,
         padding=1,
+        dilation=1,
         activation=nn.ReLU(inplace=True),
     ):
         """generate 2 serial convolution layers
@@ -202,6 +203,7 @@ class Double3DConv(nn.Module):
                     kernel_size,
                     stride_size,
                     padding,
+                    dilation,
                     bias=False,
                 ),
                 nn.BatchNorm3d(out_channels),
@@ -212,6 +214,7 @@ class Double3DConv(nn.Module):
                     kernel_size,
                     stride_size,
                     padding,
+                    dilation,
                     bias=False,
                 ),
                 nn.BatchNorm3d(out_channels),
@@ -225,6 +228,7 @@ class Double3DConv(nn.Module):
                     kernel_size,
                     stride_size,
                     padding,
+                    dilation,
                     bias=False,
                 ),
                 activation,
@@ -234,6 +238,7 @@ class Double3DConv(nn.Module):
                     kernel_size,
                     stride_size,
                     padding,
+                    dilation,
                     bias=False,
                 ),
                 activation,
@@ -298,14 +303,62 @@ class encoder3D(nn.Module):
         x = self.bottleneck(x)
 
 
+class upsample_d(nn.Module):
+
+    def __init__(
+        self,
+        in_channels,
+        out_channels = 8,
+        up_size = 48,
+        dilations=[1, 2, 4, 8],
+        batchNorm=True,
+        
+    ):
+ 
+        super(upsample_d, self).__init__()
+        self.ds = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.in_channels = in_channels
+        self.batchNorm = batchNorm
+        
+        for dilation in dilations:
+            self.ds.append(Double3DConv(in_channels = in_channels, 
+            out_channels = out_channels,
+            dilation= dilation,
+            padding= dilation
+            ))
+
+        self.upsample = nn.Upsample(size= up_size, mode='nearest')
+
+            
+    def forward(self, x):
+         
+        x = self.upsample(x)
+        ds = []
+
+        for d in self.ds:
+            ds.append(d(x))
+
+        
+
+        return x
+
+
 def test():
     # TODO: add comment about specifications of test function and replace
     # test function to test folder
-    x = torch.randn((3, 1, 512, 512))
-    x = x.to(device=DEVICE)
+    x = torch.randn((8, 50, 12, 12))
+    print(x)
+
+    m = nn.Upsample(size=48, mode='nearest')
+
+    model = upsample_d(in_channels= 8).to(device=DEVICE)
+    preds = model(x)
+    print(preds.shape)
+    # x = x.to(device=DEVICE)
 
     model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
-    preds = model(x)
+    # preds = model(x)
     print(
         "torch.cuda.max_memory_reserved: %fGB"
         % (torch.cuda.max_memory_reserved(0) / 1024 / 1024 / 1024)
