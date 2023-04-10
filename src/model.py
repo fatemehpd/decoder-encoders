@@ -179,7 +179,6 @@ class Double3DConv(nn.Module):
         stride_size=1,
         padding=1,
         dilation=1,
-        dilation=1,
         activation=nn.ReLU(inplace=True),
     ):
         """generate 2 serial convolution layers
@@ -386,7 +385,7 @@ class UNET3D(nn.Module):
             x = self.ups[idx + 1](concat_skip)
 
         x = self.final_conv(x)
-class upsample_d(nn.Module):
+class upsample3D(nn.Module):
 
     def __init__(
         self,
@@ -398,7 +397,7 @@ class upsample_d(nn.Module):
         
     ):
  
-        super(upsample_d, self).__init__()
+        super(upsample3D, self).__init__()
         self.ds = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.in_channels = in_channels
@@ -435,7 +434,7 @@ def test():
 
     m = nn.Upsample(size=48, mode='nearest')
 
-    model = upsample_d(in_channels= 8).to(device=DEVICE)
+    model = upsample3D(in_channels= 8).to(device=DEVICE)
     preds = model(x)
     print(preds.shape)
     # x = x.to(device=DEVICE)
