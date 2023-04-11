@@ -48,11 +48,15 @@ def save_predictions_as_imgs(
 
     model.eval()
     for idx, (x, y) in enumerate(loader):
-        x = x.to(device=device)
+        #y = y.to(device=device)
+        #x = x.to(device=device)
+
+        x = x.to(device=device).permute(1, 0, 2, 3)
         with torch.no_grad():
             preds = model(x)
             preds = nn.Sigmoid()(preds)
             preds = (preds > 0.5).float()
+            preds=preds.permute(1, 0, 2, 3)
         torchvision.utils.save_image(preds, f"{folder}/pred_{idx}.png")
         torchvision.utils.save_image(y, f"{folder}/save_{idx}.png")
 

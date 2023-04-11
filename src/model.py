@@ -174,7 +174,7 @@ class Double3DConv(nn.Module):
         self,
         in_channels,
         out_channels,
-        batchNorm=False,
+        batchNorm=True,
         kernel_size=3,
         stride_size=1,
         padding=1,
@@ -245,8 +245,10 @@ class Double3DConv(nn.Module):
             )
 
     def forward(self, x):
-        """copmute the output of 2 CNN layers"""
-        return self.conv(x)
+        """copmute the output of 3 CNN layers"""
+        if len(x.shape) == 4:
+            x = x.unsqueeze(0)
+        return torch.squeeze(self.conv(x),0)
 
 
 class encoder3D(nn.Module):
@@ -380,12 +382,18 @@ class UNET3D(nn.Module):
 
             if x.shape != skip_connection.shape:
                 x = TF.resize(x, size=skip_connection.shape[2:])
-
-            concat_skip = torch.cat((skip_connection, x), dim=1)
+            if len(x.shape)==4:
+                concat_skip = torch.cat((skip_connection, x), dim=0)
+            elif len(x.shape)==5:
+                concat_skip = torch.cat((skip_connection, x), dim=1)
             x = self.ups[idx + 1](concat_skip)
 
         x = self.final_conv(x)
-class upsample3D(nn.Module):
+        #TODO:add sigmoid
+        #  
+        return x
+
+class UPSAMPLE3D(nn.Module):
 
     def __init__(
         self,
@@ -397,7 +405,7 @@ class upsample3D(nn.Module):
         
     ):
  
-        super(upsample3D, self).__init__()
+        super(UPSAMPLE3D, self).__init__()
         self.ds = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.in_channels = in_channels
@@ -420,8 +428,7 @@ class upsample3D(nn.Module):
 
         for d in self.ds:
             ds.append(d(x))
-
-        
+            print(d(x).shape)
 
         return x
 
@@ -429,17 +436,13 @@ class upsample3D(nn.Module):
 def test():
     # TODO: add comment about specifications of test function and replace
     # test function to test folder
-    x = torch.randn((8, 50, 12, 12))
-    print(x)
-
-    m = nn.Upsample(size=48, mode='nearest')
-
-    model = upsample3D(in_channels= 8).to(device=DEVICE)
+    x = torch.randn(1, 1, 50, 128, 128)
+    model = UPSAMPLE3D(in_channels= 1)
     preds = model(x)
     print(preds.shape)
     # x = x.to(device=DEVICE)
 
-    model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
+    # model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
     # preds = model(x)
     print(
         "torch.cuda.max_memory_reserved: %fGB"
@@ -448,16 +451,17 @@ def test():
 
 
 if __name__ == "__main__":
-    img1 = torch.randint(0, 10, (1, 3, 10))
-    print(img1.shape)
+    # img1 = torch.randint(0, 10, (1, 3, 10))
+    # print(img1.shape)
 
-    img2 = torch.randint(0, 10, (1, 3, 10))
-    print(img2.shape)
+    # img2 = torch.randint(0, 10, (1, 3, 10))
+    # print(img2.shape)
 
-    img3 = torch.cat((img1, img2), dim=0)
-    print(img3.shape)
+    # img3 = torch.cat((img1, img2), dim=0)
+    # print(img3.shape)
 
     img4 = torch.randn(1, 1, 50, 128, 128)
     print(img4.shape)
     model = UNET3D(in_channels=1, out_channels=1)
     model(img4)
+    test()

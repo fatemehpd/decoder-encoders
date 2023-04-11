@@ -5,7 +5,7 @@ from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
 from loss_funcs import DiceLoss, IoULoss, Combined_Loss 
-from model import UNET2D
+from model import UNET2D, UNET3D
 from utils import (
     load_checkpoint,
     save_checkpoint,
@@ -32,9 +32,11 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
     loop = tqdm(loader)
 
     for batch_idx, (data, targets) in enumerate(loop):
-        data = data.to(device=DEVICE)
+        data = data.to(device=DEVICE).permute(1, 0, 2, 3)
+        targets = targets.float().to(device=DEVICE).permute(1, 0, 2, 3)
 
-        targets = targets.float().to(device=DEVICE)
+        #data = data.to(device=DEVICE)
+        #targets = targets.float().to(device=DEVICE)
         # forward
         with torch.cuda.amp.autocast():
             pred = model(data)
@@ -51,7 +53,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 def main():
 
-    model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
+    model = UNET3D(in_channels=1, out_channels=1).to(DEVICE)
 
     loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()
