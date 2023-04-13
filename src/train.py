@@ -21,7 +21,7 @@ NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
 TRAIN_MASK_DIR = "./converted_dataset/train_masks"
 VAL_IMG_DIR = "./converted_dataset/val_cts"
@@ -82,7 +82,7 @@ def main():
         train_fn(train_loader, model, optimizer, loss_fn1, scaler)
 
         # save model
-        if(epoch % 3 == 0):
+        if(epoch % 2 == 0):
             checkpoint = {
                 "state_dict": model.state_dict(),
                 "optimizer": optimizer.state_dict(),

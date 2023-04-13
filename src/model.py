@@ -39,8 +39,8 @@ class Double2DConv(nn.Module):
                     in_channels,
                     out_channels,
                     kernel_size,
-                    stride_size,
-                    padding,
+                    stride=stride_size,
+                    padding=padding,
                     bias=False,
                 ),
                 nn.BatchNorm2d(out_channels),
@@ -49,8 +49,8 @@ class Double2DConv(nn.Module):
                     out_channels,
                     out_channels,
                     kernel_size,
-                    stride_size,
-                    padding,
+                    stride=stride_size,
+                    padding=padding,
                     bias=False,
                 ),
                 nn.BatchNorm2d(out_channels),
@@ -248,7 +248,7 @@ class Double3DConv(nn.Module):
         """copmute the output of 3 CNN layers"""
         if len(x.shape) == 4:
             x = x.unsqueeze(0)
-        return torch.squeeze(self.conv(x),0)
+        return torch.squeeze(self.conv(x), 0)
 
 
 class encoder3D(nn.Module):
@@ -344,13 +344,13 @@ class UNET3D(nn.Module):
                     batchNorm=self.batchNorm,
                     kernel_size=kernel[i],
                     stride_size=stride[i],
-                    padding=self.padding[i],
+                    padding=padding[i],
                 )
             )
             self.in_channels = feature
 
         # Up part of UNET
-        for feature in reversed(features):
+        for i,feature in enumerate(reversed(features)):
             self.ups.append(
                 nn.ConvTranspose3d(
                     feature * 2,
@@ -359,10 +359,26 @@ class UNET3D(nn.Module):
                     stride=(1, 2, 2),
                 )
             )
-            self.ups.append(Double3DConv(feature * 2, feature))
-
-        self.bottleneck = Double3DConv(features[-1], features[-1] * 2)
-        self.final_conv = Double3DConv(features[0], out_channels=out_channels)
+            j = len(features)-i-1
+            self.ups.append(
+                Double3DConv(
+                    feature * 2,
+                    feature,
+                    batchNorm=self.batchNorm,
+                    kernel_size=kernel[j],
+                    stride_size=stride[j],
+                    padding=self.padding[j],
+                )
+            )
+        self.bottleneck = Double3DConv(
+            features[-1],
+            features[-1] * 2,
+            batchNorm=self.batchNorm,
+            kernel_size=(3, 3, 3),
+            # stride_size=1,
+            padding=(1, 1, 1),
+        )
+        self.final_conv = nn.Conv3d(features[0], out_channels, kernel_size=1)
 
     def forward(self, x):
 
@@ -382,47 +398,48 @@ class UNET3D(nn.Module):
 
             if x.shape != skip_connection.shape:
                 x = TF.resize(x, size=skip_connection.shape[2:])
-            if len(x.shape)==4:
+            if len(x.shape) == 4:
                 concat_skip = torch.cat((skip_connection, x), dim=0)
-            elif len(x.shape)==5:
+            elif len(x.shape) == 5:
                 concat_skip = torch.cat((skip_connection, x), dim=1)
             x = self.ups[idx + 1](concat_skip)
 
         x = self.final_conv(x)
-        #TODO:add sigmoid
-        #  
+        # TODO:add sigmoid
+        #
+        # return nn.Sigmoid()(x)
         return x
+
 
 class UPSAMPLE3D(nn.Module):
 
     def __init__(
         self,
         in_channels,
-        out_channels = 8,
-        up_size = 48,
+        out_channels=8,
+        up_size=48,
         dilations=[1, 2, 4, 8],
         batchNorm=True,
-        
+
     ):
- 
+
         super(UPSAMPLE3D, self).__init__()
         self.ds = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.in_channels = in_channels
         self.batchNorm = batchNorm
-        
+
         for dilation in dilations:
-            self.ds.append(Double3DConv(in_channels = in_channels, 
-            out_channels = out_channels,
-            dilation= dilation,
-            padding= dilation
-            ))
+            self.ds.append(Double3DConv(in_channels=in_channels,
+                                        out_channels=out_channels,
+                                        dilation=dilation,
+                                        padding=dilation
+                                        ))
 
-        self.upsample = nn.Upsample(size= up_size, mode='nearest')
+        self.upsample = nn.Upsample(size=up_size, mode='nearest')
 
-            
     def forward(self, x):
-         
+
         x = self.upsample(x)
         ds = []
 
@@ -437,7 +454,7 @@ def test():
     # TODO: add comment about specifications of test function and replace
     # test function to test folder
     x = torch.randn(1, 1, 50, 128, 128)
-    model = UPSAMPLE3D(in_channels= 1)
+    model = UPSAMPLE3D(in_channels=1)
     preds = model(x)
     print(preds.shape)
     # x = x.to(device=DEVICE)
