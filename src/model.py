@@ -119,7 +119,7 @@ class UNETEncoder2D(nn.Module):
 
 class UNETDecoder2D(nn.Module):
     """UNETDecoder2D is a series of double CNN 2D and transpose
-    convolution ,.this module doesn't calculate bottleneck of unet"""
+    convolution. this module doesn't calculate final CNN layer of unet"""
 
     def __init__(
         self,
@@ -335,13 +335,13 @@ class Double3DConv(nn.Module):
         return torch.squeeze(self.conv(x), 0)
 
 
-class encoder3D(nn.Module):
-    """a 3D encoder with bottleneck"""
+class UNETEncoder3D(nn.Module):
+    """UNETEncoder3D is a series of double CNN 2D and maxpooling
+    this module doesn't calculate bottleneck of unet"""
 
     def __init__(
         self,
         in_channels=3,
-        out_channels=3,
         kernel=[3, 3, 3, 3],
         padding=[1, 1, 1, 1],
         stride=[1, 1, 1, 1],
@@ -360,12 +360,14 @@ class encoder3D(nn.Module):
             features (list, optional): number of feature after each
             maxpool to [64, 128, 256, 512].
         """
-        super(encoder3D).__init__()
+        super(UNETEncoder3D).__init__()
         self.downs = nn.ModuleList()
         self.pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
         self.in_channels = in_channels
         self.batchNorm = batchNorm
         self.padding = padding
+        self.skip_connections = []
+
         for i, feature in enumerate(features):
             self.downs.append(
                 Double3DConv(
@@ -378,14 +380,74 @@ class encoder3D(nn.Module):
                 )
             )
             self.in_channels = feature
-        self.bottleneck = Double3DConv(features[-1], features[-1] * 2)
 
     def forward(self, x):
+        skip_connections = []
 
         for down in self.downs:
             x = down(x)
+            skip_connections.append(x)
             x = self.pool(x)
-        x = self.bottleneck(x)
+        return x
+
+
+class UNETDecoder3D(nn.Module):
+    """UNETDecoder2D is a series of double CNN 2D and transpose
+    convolution. this module doesn't calculate final CNN layer of unet"""
+
+    def __init__(
+        self,
+        skip_connections,
+        out_channels=3,
+        kernel=[3, 3, 3, 3],
+        padding=[1, 1, 1, 1],
+        stride=[1, 1, 1, 1],
+        batchNorm=True,
+        features=[64, 128, 256, 512],
+    ):
+        super(UNETDecoder3D, self).__init__()
+        self.skip_connections = skip_connections[::-1]
+        self.ups = nn.ModuleList()
+        self.pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
+        self.out_channels = out_channels
+        self.batchNorm = batchNorm
+        self.padding = padding
+
+        for i, feature in enumerate(reversed(features)):
+            self.ups.append(
+                nn.ConvTranspose3d(
+                    feature * 2,
+                    feature,
+                    kernel_size=(1, 2, 2),
+                    stride=(1, 2, 2),
+                )
+            )
+            j = len(features) - i - 1
+            self.ups.append(
+                Double3DConv(
+                    feature * 2,
+                    feature,
+                    batchNorm=self.batchNorm,
+                    kernel_size=kernel[j],
+                    stride_size=stride[j],
+                    padding=self.padding[j],
+                )
+            )
+
+    def forward(self, x):
+        self.skip_connections = []
+        for idx in range(0, len(self.ups), 2):
+            x = self.ups[idx](x)
+            skip_connection = self.skip_connections[idx // 2]
+
+            if x.shape != skip_connection.shape:
+                x = TF.resize(x, size=skip_connection.shape[2:])
+            if len(x.shape) == 4:
+                concat_skip = torch.cat((skip_connection, x), dim=0)
+            elif len(x.shape) == 5:
+                concat_skip = torch.cat((skip_connection, x), dim=1)
+            x = self.ups[idx + 1](concat_skip)
+        return x
 
 
 class UNET3D(nn.Module):
@@ -434,7 +496,7 @@ class UNET3D(nn.Module):
             self.in_channels = feature
 
         # Up part of UNET
-        for i,feature in enumerate(reversed(features)):
+        for i, feature in enumerate(reversed(features)):
             self.ups.append(
                 nn.ConvTranspose3d(
                     feature * 2,
@@ -443,7 +505,7 @@ class UNET3D(nn.Module):
                     stride=(1, 2, 2),
                 )
             )
-            j = len(features)-i-1
+            j = len(features) - i - 1
             self.ups.append(
                 Double3DConv(
                     feature * 2,
@@ -465,7 +527,6 @@ class UNET3D(nn.Module):
         self.final_conv = nn.Conv3d(features[0], out_channels, kernel_size=1)
 
     def forward(self, x):
-
         skip_connections = []
 
         for down in self.downs:
@@ -496,7 +557,6 @@ class UNET3D(nn.Module):
 
 
 class UPSAMPLE3D(nn.Module):
-
     def __init__(
         self,
         in_channels,
@@ -504,9 +564,7 @@ class UPSAMPLE3D(nn.Module):
         up_size=48,
         dilations=[1, 2, 4, 8],
         batchNorm=True,
-
     ):
-
         super(UPSAMPLE3D, self).__init__()
         self.ds = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -514,16 +572,18 @@ class UPSAMPLE3D(nn.Module):
         self.batchNorm = batchNorm
 
         for dilation in dilations:
-            self.ds.append(Double3DConv(in_channels=in_channels,
-                                        out_channels=out_channels,
-                                        dilation=dilation,
-                                        padding=dilation
-                                        ))
+            self.ds.append(
+                Double3DConv(
+                    in_channels=in_channels,
+                    out_channels=out_channels,
+                    dilation=dilation,
+                    padding=dilation,
+                )
+            )
 
-        self.upsample = nn.Upsample(size=up_size, mode='nearest')
+        self.upsample = nn.Upsample(size=up_size, mode="nearest")
 
     def forward(self, x):
-
         x = self.upsample(x)
         ds = []
 
