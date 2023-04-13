@@ -114,7 +114,7 @@ class UNETEncoder2D(nn.Module):
             x = down(x)
             self.skip_connections.append(x)
             x = self.pool(x)
-        return x
+        return x, self.skip_connections
 
 
 class UNETDecoder2D(nn.Module):
@@ -123,7 +123,6 @@ class UNETDecoder2D(nn.Module):
 
     def __init__(
         self,
-        skip_connections,
         out_channels=3,
         kernel=[3, 3, 3, 3],
         padding=[1, 1, 1, 1],
@@ -133,9 +132,11 @@ class UNETDecoder2D(nn.Module):
     ):
         super(UNETDecoder2D, self).__init__()
 
-        self.skip_connections = skip_connections[::-1]
         self.ups = nn.ModuleList()
         self.out_channels = out_channels
+        self.initConv = nn.Conv2d(
+            features[-1] * 4, features[-1] * 2, 3, padding=1
+        )
 
         for feature in reversed(features):
             self.ups.append(
@@ -150,10 +151,12 @@ class UNETDecoder2D(nn.Module):
                 Double2DConv(feature * 2, feature, batchNorm=batchNorm)
             )
 
-    def forward(self, x):
+    def forward(self, x, skip_connections):
+        skip_connections = skip_connections[::-1]
+        x = self.initConv(x)
         for idx in range(0, len(self.ups), 2):
             x = self.ups[idx](x)
-            skip_connection = self.skip_connections[idx // 2]
+            skip_connection = skip_connections[idx // 2]
 
             if x.shape != skip_connection.shape:
                 x = TF.resize(x, size=skip_connection.shape[2:])
@@ -360,7 +363,7 @@ class UNETEncoder3D(nn.Module):
             features (list, optional): number of feature after each
             maxpool to [64, 128, 256, 512].
         """
-        super(UNETEncoder3D).__init__()
+        super(UNETEncoder3D, self).__init__()
         self.downs = nn.ModuleList()
         self.pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
         self.in_channels = in_channels
@@ -382,13 +385,13 @@ class UNETEncoder3D(nn.Module):
             self.in_channels = feature
 
     def forward(self, x):
-        skip_connections = []
+        self.skip_connections = []
 
         for down in self.downs:
             x = down(x)
-            skip_connections.append(x)
+            self.skip_connections.append(x)
             x = self.pool(x)
-        return x
+        return x, self.skip_connections
 
 
 class UNETDecoder3D(nn.Module):
@@ -397,7 +400,6 @@ class UNETDecoder3D(nn.Module):
 
     def __init__(
         self,
-        skip_connections,
         out_channels=3,
         kernel=[3, 3, 3, 3],
         padding=[1, 1, 1, 1],
@@ -406,12 +408,14 @@ class UNETDecoder3D(nn.Module):
         features=[64, 128, 256, 512],
     ):
         super(UNETDecoder3D, self).__init__()
-        self.skip_connections = skip_connections[::-1]
         self.ups = nn.ModuleList()
         self.pool = nn.MaxPool3d(kernel_size=(1, 2, 2), stride=(1, 2, 2))
         self.out_channels = out_channels
         self.batchNorm = batchNorm
         self.padding = padding
+        self.initConv = nn.Conv3d(
+            features[-1] * 4, features[-1] * 2, 3, padding=1
+        )
 
         for i, feature in enumerate(reversed(features)):
             self.ups.append(
@@ -434,11 +438,12 @@ class UNETDecoder3D(nn.Module):
                 )
             )
 
-    def forward(self, x):
-        self.skip_connections = []
+    def forward(self, x, skip_connections):
+        x = self.initConv(x)
+        skip_connections = skip_connections[::-1]
         for idx in range(0, len(self.ups), 2):
             x = self.ups[idx](x)
-            skip_connection = self.skip_connections[idx // 2]
+            skip_connection = skip_connections[idx // 2]
 
             if x.shape != skip_connection.shape:
                 x = TF.resize(x, size=skip_connection.shape[2:])
@@ -594,6 +599,148 @@ class UPSAMPLE3D(nn.Module):
         return x
 
 
+class xnet(nn.Module):
+    """Some Information about xnet"""
+
+    def __init__(
+        self,
+        in_channels=3,
+        out_channels=3,
+        kernel=[3, 3, 3, 3],
+        padding=[1, 1, 1, 1],
+        stride=[1, 1, 1, 1],
+        batchNorm=True,
+        features=[64, 128, 256, 512],
+    ):
+        super(xnet, self).__init__()
+        self.UNETEncoder3D = UNETEncoder3D(
+            in_channels=in_channels,
+            kernel=kernel,
+            padding=padding,
+            stride=stride,
+            batchNorm=batchNorm,
+            features=features,
+        )
+        self.UNETEncoder2D = UNETEncoder2D(
+            in_channels=in_channels,
+            kernel=kernel,
+            padding=padding,
+            stride=stride,
+            batchNorm=batchNorm,
+            features=features,
+        )
+        self.UNETDecoder3D = UNETDecoder3D(
+            out_channels=out_channels,
+            kernel=kernel,
+            padding=padding,
+            stride=stride,
+            batchNorm=batchNorm,
+            features=features,
+        )
+        self.UNETDecoder2D = UNETDecoder2D(
+            out_channels=out_channels,
+            kernel=kernel,
+            padding=padding,
+            stride=stride,
+            batchNorm=batchNorm,
+            features=features,
+        )
+
+        self.bottleneck3D = Double3DConv(
+            features[-1], features[-1] * 2, batchNorm=batchNorm, kernel_size=3
+        )
+        self.bottleneck2D = Double2DConv(
+            features[-1], features[-1] * 2, batchNorm=batchNorm, kernel_size=3
+        )
+
+        """we supposed that the features[0] index is equal to 64"""
+        """TODO: make this code modular"""
+        self.finalConv3D = nn.Sequential(
+            nn.Conv3d(
+                features[0],
+                features[0] // 4,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.BatchNorm3d(features[0] // 4),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(
+                features[0] // 4,
+                features[0] // 16,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.BatchNorm3d(features[0] // 16),
+            nn.ReLU(inplace=True),
+            nn.Conv3d(
+                features[0] // 16,
+                features[0] // 64,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.ReLU(inplace=True),
+        )
+        self.finalConv2D = nn.Sequential(
+            nn.Conv2d(
+                features[0],
+                features[0] // 4,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(features[0] // 4),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(
+                features[0] // 4,
+                features[0] // 16,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(features[0] // 16),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(
+                features[0] // 16,
+                features[0] // 64,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.ReLU(inplace=True),
+        )
+        self.finalBatchNorm = nn.BatchNorm2d(out_channels*2)
+        self.finalConv = nn.Conv2d(
+            out_channels * 2, out_channels, kernel_size=1
+        )
+
+    def forward(self, x: torch.Tensor):
+        x3D = x.permute(1, 0, 2, 3)
+
+        x2D, skip_connections2D = self.UNETEncoder2D(x)
+        x3D, skip_connections3D = self.UNETEncoder3D(x3D)
+
+        x2D = self.bottleneck2D(x2D).permute(1, 0, 2, 3)
+        x3D = self.bottleneck3D(x3D)
+
+        concat_bottleNeck = torch.cat((x2D, x3D), dim=0)
+        x2D = concat_bottleNeck.permute(1, 0, 2, 3)
+        x3D = concat_bottleNeck
+
+        x2D = self.UNETDecoder2D(x2D, skip_connections2D)
+        x3D = self.UNETDecoder3D(x3D, skip_connections3D)
+
+        x2D = self.finalConv2D(x2D)
+        x3D = torch.squeeze(self.finalConv3D(x3D.unsqueeze(0)),0).permute(1, 0, 2, 3)
+
+        concat_finalLayer = torch.cat((x2D, x3D), dim=1)
+        x = self.finalBatchNorm(concat_finalLayer)
+        x = self.finalConv(x)
+        return x
+
+
 def test():
     # TODO: add comment about specifications of test function and replace
     # test function to test folder
@@ -621,8 +768,8 @@ if __name__ == "__main__":
     # img3 = torch.cat((img1, img2), dim=0)
     # print(img3.shape)
 
-    img4 = torch.randn(1, 1, 50, 128, 128)
+    img4 = torch.randn(50, 1, 128, 128)
     print(img4.shape)
-    model = UNET3D(in_channels=1, out_channels=1)
+    model = xnet(in_channels=1, out_channels=1)
     model(img4)
     test()
