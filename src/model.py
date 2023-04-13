@@ -39,8 +39,8 @@ class Double2DConv(nn.Module):
                     in_channels,
                     out_channels,
                     kernel_size,
-                    stride=stride_size,
-                    padding=padding,
+                    stride_size,
+                    padding,
                     bias=False,
                 ),
                 nn.BatchNorm2d(out_channels),
@@ -49,8 +49,8 @@ class Double2DConv(nn.Module):
                     out_channels,
                     out_channels,
                     kernel_size,
-                    stride=stride_size,
-                    padding=padding,
+                    stride_size,
+                    padding,
                     bias=False,
                 ),
                 nn.BatchNorm2d(out_channels),
@@ -83,12 +83,96 @@ class Double2DConv(nn.Module):
         return self.conv(x)
 
 
+class UNETEncoder2D(nn.Module):
+    """UNETEncoder2D is a series of double CNN 2D and maxpooling
+    this module doesn't calculate bottleneck of unet"""
+
+    def __init__(
+        self,
+        in_channels=3,
+        kernel=[3, 3, 3, 3],
+        padding=[1, 1, 1, 1],
+        stride=[1, 1, 1, 1],
+        batchNorm=True,
+        features=[64, 128, 256, 512],
+    ):
+        super(UNETEncoder2D, self).__init__()
+
+        self.downs = nn.ModuleList()
+        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+        self.skip_connections = []
+
+        for feature in features:
+            self.downs.append(
+                Double2DConv(in_channels, feature, batchNorm=batchNorm)
+            )
+            in_channels = feature
+
+    def forward(self, x):
+        self.skip_connections = []
+        for down in self.downs:
+            x = down(x)
+            self.skip_connections.append(x)
+            x = self.pool(x)
+        return x
+
+
+class UNETDecoder2D(nn.Module):
+    """UNETDecoder2D is a series of double CNN 2D and transpose
+    convolution ,.this module doesn't calculate bottleneck of unet"""
+
+    def __init__(
+        self,
+        skip_connections,
+        out_channels=3,
+        kernel=[3, 3, 3, 3],
+        padding=[1, 1, 1, 1],
+        stride=[1, 1, 1, 1],
+        batchNorm=True,
+        features=[64, 128, 256, 512],
+    ):
+        super(UNETDecoder2D, self).__init__()
+
+        self.skip_connections = skip_connections[::-1]
+        self.ups = nn.ModuleList()
+        self.out_channels = out_channels
+
+        for feature in reversed(features):
+            self.ups.append(
+                nn.ConvTranspose2d(
+                    feature * 2,
+                    feature,
+                    kernel_size=2,
+                    stride=2,
+                )
+            )
+            self.ups.append(
+                Double2DConv(feature * 2, feature, batchNorm=batchNorm)
+            )
+
+    def forward(self, x):
+        for idx in range(0, len(self.ups), 2):
+            x = self.ups[idx](x)
+            skip_connection = self.skip_connections[idx // 2]
+
+            if x.shape != skip_connection.shape:
+                x = TF.resize(x, size=skip_connection.shape[2:])
+
+            concat_skip = torch.cat((skip_connection, x), dim=1)
+            x = self.ups[idx + 1](concat_skip)
+        return x
+
+
 class UNET2D(nn.Module):
     """basic Unet network implementation based on the below paper
     https://doi.org/10.48550/arXiv.1505.04597"""
 
     def __init__(
-        self, in_channels=3, out_channels=3, features=[64, 128, 256, 512]
+        self,
+        in_channels=3,
+        out_channels=3,
+        features=[64, 128, 256, 512]
+        # TODO: add kernel padding stride batchnorm
     ):
         """setup 2-D U_NET network
 
@@ -344,7 +428,7 @@ class UNET3D(nn.Module):
                     batchNorm=self.batchNorm,
                     kernel_size=kernel[i],
                     stride_size=stride[i],
-                    padding=padding[i],
+                    padding=self.padding[i],
                 )
             )
             self.in_channels = feature
