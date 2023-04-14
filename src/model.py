@@ -566,15 +566,16 @@ class UPSAMPLE3D(nn.Module):
         self,
         in_channels,
         out_channels = 4,
-        up_size = 48,
+        up_size = 128,
         dilations=[1, 2, 4, 8],
         batchNorm=True,
     ):
         super(UPSAMPLE3D, self).__init__()
         self.ds = nn.ModuleList()
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.in_channels = in_channels
         self.batchNorm = batchNorm
+
+        self.first_conv = Double3DConv(in_channels, out_channels)
 
         for dilation in dilations:
             self.ds.append(Double3DConv(in_channels = out_channels, 
@@ -585,10 +586,14 @@ class UPSAMPLE3D(nn.Module):
 
         self.upsample = nn.Upsample(size= up_size, mode='nearest')
 
-        self.fc1 = nn.Linear(in_features= 16, out_features= 64)
-        self.fc2 = nn.Linear(in_features= 64, out_features= 1)
+        self.FClayers = nn.Sequential(
+            nn.Linear(in_features= out_channels*4, out_features= out_channels*16),
+            nn.ReLU(inplace=True),
+            nn.Linear(in_features= out_channels*16, out_features= 1),
+            nn.ReLU(inplace=True)
+        )
 
-            
+         
     def forward(self, x):
         x = self.first_conv(x)
         x = self.upsample(x)
@@ -601,12 +606,11 @@ class UPSAMPLE3D(nn.Module):
             if(idx != 0):
                 x = torch.cat((ds[idx], x), dim=0)
             else:
-                x = ds[idx] 
+                x = ds[idx]
 
         x = x.permute(1, 2, 3, 0)
+        x = self.FClayers(x)
 
-        x = self.fc1(x)
-        x = self.fc2(x)
         x = x.permute(3, 0, 1, 2)
            
         return x
@@ -741,6 +745,7 @@ class xnet(nn.Module):
         concat_bottleNeck = torch.cat((x2D, x3D), dim=0)
         x2D = concat_bottleNeck.permute(1, 0, 2, 3)
         x3D = concat_bottleNeck
+        
 
         x2D = self.UNETDecoder2D(x2D, skip_connections2D)
         x3D = self.UNETDecoder3D(x3D, skip_connections3D)
@@ -754,11 +759,121 @@ class xnet(nn.Module):
         return x
 
 
+class XNET_UPSAMPLE(nn.Module):
+    """Some Information about xnet"""
+
+    def __init__(
+        self,
+        in_channels=3,
+        out_channels=3,
+        kernel=[3, 3, 3, 3],
+        padding=[1, 1, 1, 1],
+        stride=[1, 1, 1, 1],
+        batchNorm=True,
+        features=[64, 128, 256, 512],
+        upsample_out_channels = 4
+    ):
+        super(XNET_UPSAMPLE, self).__init__()
+        self.UNETEncoder3D = UNETEncoder3D(
+            in_channels=in_channels,
+            kernel=kernel,
+            padding=padding,
+            stride=stride,
+            batchNorm=batchNorm,
+            features=features,
+        )
+        self.UNETEncoder2D = UNETEncoder2D(
+            in_channels=in_channels,
+            kernel=kernel,
+            padding=padding,
+            stride=stride,
+            batchNorm=batchNorm,
+            features=features,
+        )
+        self.UPSAMPLE3D = UPSAMPLE3D(
+            in_channels= features[-1] * 4,
+            out_channels= upsample_out_channels,
+        )
+        self.UNETDecoder2D = UNETDecoder2D(
+            out_channels=out_channels,
+            kernel=kernel,
+            padding=padding,
+            stride=stride,
+            batchNorm=batchNorm,
+            features=features,
+        )
+
+        self.bottleneck3D = Double3DConv(
+            features[-1], features[-1] * 2, batchNorm=batchNorm, kernel_size=3
+        )
+        self.bottleneck2D = Double2DConv(
+            features[-1], features[-1] * 2, batchNorm=batchNorm, kernel_size=3
+        )
+
+        """we supposed that the features[0] index is equal to 64"""
+        """TODO: make this code modular"""
+        self.finalConv2D = nn.Sequential(
+            nn.Conv2d(
+                features[0],
+                features[0] // 4,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(features[0] // 4),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(
+                features[0] // 4,
+                features[0] // 16,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.BatchNorm2d(features[0] // 16),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(
+                features[0] // 16,
+                features[0] // 64,
+                3,
+                padding=1,
+                bias=False,
+            ),
+            nn.ReLU(inplace=True),
+        )
+        self.finalBatchNorm = nn.BatchNorm2d(out_channels*2)
+        self.finalConv = nn.Conv2d(
+            out_channels * 2, out_channels, kernel_size=1
+        )
+
+    def forward(self, x: torch.Tensor):
+        x3D = x.permute(1, 0, 2, 3)
+
+        x2D, skip_connections2D = self.UNETEncoder2D(x)
+        x3D, _ = self.UNETEncoder3D(x3D)
+
+        x2D = self.bottleneck2D(x2D).permute(1, 0, 2, 3)
+        x3D = self.bottleneck3D(x3D)
+
+        concat_bottleNeck = torch.cat((x2D, x3D), dim=0)
+        x2D = concat_bottleNeck.permute(1, 0, 2, 3)
+        x3D = concat_bottleNeck
+        
+        x2D = self.UNETDecoder2D(x2D, skip_connections2D)
+        x3D = self.UPSAMPLE3D(x3D).permute(1, 0, 2, 3)
+
+        x2D = self.finalConv2D(x2D)
+
+        concat_finalLayer = torch.cat((x2D, x3D), dim=1)
+        x = self.finalBatchNorm(concat_finalLayer)
+        x = self.finalConv(x)
+        return x
+
+
 def test():
     # TODO: add comment about specifications of test function and replace
     # test function to test folder
-    x = torch.randn(1, 1024, 50, 12, 12)
-    print(x[0].shape)
+    x = torch.randn(1024, 50, 12, 12)
+    # print(x[0].shape)
     model = UPSAMPLE3D(in_channels= 1024)
     preds = model(x)
     print(preds.shape)
@@ -784,6 +899,7 @@ if __name__ == "__main__":
 
     img4 = torch.randn(50, 1, 128, 128)
     print(img4.shape)
-    model = xnet(in_channels=1, out_channels=1)
-    model(img4)
-    test()
+    model = XNET_UPSAMPLE(in_channels=1, out_channels=1)
+    preds = model(img4)
+    print(preds.shape)
+    # test()
