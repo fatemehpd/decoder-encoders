@@ -588,7 +588,6 @@ class UPSAMPLE3D(nn.Module):
 
         self.FClayers = nn.Sequential(
             nn.Linear(in_features= out_channels*4, out_features= out_channels*16),
-            nn.BatchNorm2d(out_channels*16),
             nn.ReLU(inplace=True),
             nn.Linear(in_features= out_channels*16, out_features= 1),
             nn.ReLU(inplace=True)
@@ -611,6 +610,8 @@ class UPSAMPLE3D(nn.Module):
 
         x = x.permute(1, 2, 3, 0)
         x = self.FClayers(x)
+
+        x = x.permute(3, 0, 1, 2)
            
         return x
 
