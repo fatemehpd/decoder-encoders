@@ -753,8 +753,8 @@ class xnet(nn.Module):
         print(x3D.shape)
 
         concat_finalLayer = torch.cat((x2D, x3D), dim=1)
-        x = self.finalBatchNorm(concat_finalLayer)
-        x = self.finalConv(x)
+        # x = self.finalBatchNorm(concat_finalLayer)
+        x = self.finalConv(concat_finalLayer)
         return x
 
 
@@ -863,8 +863,8 @@ class XNET_UPSAMPLE(nn.Module):
         x2D = self.finalConv2D(x2D)
 
         concat_finalLayer = torch.cat((x2D, x3D), dim=1)
-        x = self.finalBatchNorm(concat_finalLayer)
-        x = self.finalConv(x)
+        # x = self.finalBatchNorm(concat_finalLayer)
+        x = self.finalConv(concat_finalLayer)
         return x
 
 
