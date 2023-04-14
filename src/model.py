@@ -398,7 +398,7 @@ class UPSAMPLE3D(nn.Module):
     def __init__(
         self,
         in_channels,
-        out_channels = 8,
+        out_channels = 4,
         up_size = 48,
         dilations=[1, 2, 4, 8],
         batchNorm=True,
@@ -410,9 +410,11 @@ class UPSAMPLE3D(nn.Module):
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.in_channels = in_channels
         self.batchNorm = batchNorm
+
+        self.first_conv = Double3DConv(in_channels, out_channels)
         
         for dilation in dilations:
-            self.ds.append(Double3DConv(in_channels = in_channels, 
+            self.ds.append(Double3DConv(in_channels = out_channels, 
             out_channels = out_channels,
             dilation= dilation,
             padding= dilation
@@ -420,24 +422,39 @@ class UPSAMPLE3D(nn.Module):
 
         self.upsample = nn.Upsample(size= up_size, mode='nearest')
 
+        self.fc1 = nn.Linear(in_features= 16, out_features= 64)
+        self.fc2 = nn.Linear(in_features= 64, out_features= 1)
+
             
     def forward(self, x):
-         
+        x = self.first_conv(x)
         x = self.upsample(x)
         ds = []
 
         for d in self.ds:
             ds.append(d(x))
-            print(d(x).shape)
 
+        for idx, d in enumerate(self.ds):
+            if(idx != 0):
+                x = torch.cat((ds[idx], x), dim=0)
+            else:
+                x = ds[idx] 
+
+        x = x.permute(1, 2, 3, 0)
+
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = x.permute(3, 0, 1, 2)
+           
         return x
 
 
 def test():
     # TODO: add comment about specifications of test function and replace
     # test function to test folder
-    x = torch.randn(1, 1, 50, 128, 128)
-    model = UPSAMPLE3D(in_channels= 1)
+    x = torch.randn(1, 1024, 50, 12, 12)
+    print(x[0].shape)
+    model = UPSAMPLE3D(in_channels= 1024)
     preds = model(x)
     print(preds.shape)
     # x = x.to(device=DEVICE)
@@ -460,8 +477,8 @@ if __name__ == "__main__":
     # img3 = torch.cat((img1, img2), dim=0)
     # print(img3.shape)
 
-    img4 = torch.randn(1, 1, 50, 128, 128)
-    print(img4.shape)
-    model = UNET3D(in_channels=1, out_channels=1)
-    model(img4)
+    # img4 = torch.randn(1, 1, 50, 128, 128)
+    # print(img4.shape)
+    # model = UNET3D(in_channels=1, out_channels=1)
+    # model(img4)
     test()
