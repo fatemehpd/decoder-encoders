@@ -16,7 +16,7 @@ from utils import (
 # Hyperparameters etc.
 LEARNING_RATE = 1e-4
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-NUM_EPOCHS = 100
+NUM_EPOCHS = 1000
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
@@ -51,7 +51,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 def main():
 
-    model = xnet(in_channels=1, out_channels=1).to(DEVICE)
+    model = XNET_UPSAMPLE(in_channels=1, out_channels=1).to(DEVICE)
 
     loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()

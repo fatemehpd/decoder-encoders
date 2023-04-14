@@ -587,10 +587,8 @@ class UPSAMPLE3D(nn.Module):
         self.upsample = nn.Upsample(size= up_size, mode='nearest')
 
         self.FClayers = nn.Sequential(
-            nn.Linear(in_features= out_channels*4, out_features= out_channels*16),
-            nn.ReLU(inplace=True),
-            nn.Linear(in_features= out_channels*16, out_features= 1),
-            nn.ReLU(inplace=True)
+            nn.Linear(in_features= out_channels*4, out_features= out_channels*32),
+            nn.Linear(in_features= out_channels*32, out_features= 1),
         )
 
          
@@ -610,8 +608,6 @@ class UPSAMPLE3D(nn.Module):
 
         x = x.permute(1, 2, 3, 0)
         x = self.FClayers(x)
-
-        x = x.permute(3, 0, 1, 2)
            
         return x
 
@@ -753,6 +749,9 @@ class xnet(nn.Module):
         x2D = self.finalConv2D(x2D)
         x3D = torch.squeeze(self.finalConv3D(x3D.unsqueeze(0)),0).permute(1, 0, 2, 3)
 
+        print(x2D.shape)
+        print(x3D.shape)
+
         concat_finalLayer = torch.cat((x2D, x3D), dim=1)
         x = self.finalBatchNorm(concat_finalLayer)
         x = self.finalConv(x)
@@ -859,7 +858,7 @@ class XNET_UPSAMPLE(nn.Module):
         x3D = concat_bottleNeck
         
         x2D = self.UNETDecoder2D(x2D, skip_connections2D)
-        x3D = self.UPSAMPLE3D(x3D).permute(1, 0, 2, 3)
+        x3D = self.UPSAMPLE3D(x3D).permute(0, 3, 1, 2)
 
         x2D = self.finalConv2D(x2D)
 
