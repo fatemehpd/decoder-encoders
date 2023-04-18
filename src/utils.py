@@ -1,9 +1,12 @@
 # TODO: add documantations and comments
+import os
 import torch
 import torch.nn as nn
+import numpy as np
 import torchvision
 from dataset import CTDataset
 from torch.utils.data import DataLoader
+
 
 
 def save_checkpoint(state, filename="my_checkpoint.pth.tar"):
@@ -44,8 +47,10 @@ def get_loaders(train_dir, train_maskdir, val_dir,
 
 
 def save_predictions_as_imgs(
-        loader, model, folder="./saved_images", device="cuda"):
+        loader, model, loss_fn, folder="./saved_images", device="cuda"):
 
+    losses = []
+    val_losses = []
     model.eval()
     for idx, (x, y) in enumerate(loader):
         #y = y.to(device=device)
@@ -54,9 +59,15 @@ def save_predictions_as_imgs(
         x = x.to(device=device)
         with torch.no_grad():
             preds = model(x)
+            loss, _ = loss_fn(preds, y.to(device=device))
             preds = nn.Sigmoid()(preds)
             preds = (preds > 0.5).float()
+            
+        losses.append(loss.item()) 
         torchvision.utils.save_image(preds, f"{folder}/{idx}_pred.png")
         torchvision.utils.save_image(y, f"{folder}/{idx}_save.png")
+    
+    val_losses.append(np.average(losses))
+    np.save(os.path.join(os.path.dirname(__file__), '..\\losses\\val_losses'), val_losses)
 
     model.train()

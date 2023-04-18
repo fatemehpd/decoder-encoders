@@ -1,6 +1,8 @@
 # TODO: add documantations and comments
 
 import torch
+import numpy as np
+import os
 from tqdm import tqdm
 import torch.nn as nn
 import torch.optim as optim
@@ -48,7 +50,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
 
         # update tqdm loop
         loop.set_postfix(loss=loss.item())
-        losses.append(loss)
+        losses.append(loss.item())
 
 
 def main():
@@ -56,7 +58,8 @@ def main():
     model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
 
     losses = []
-    print(losses)
+    epoch_losses = []
+    
     loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
@@ -80,11 +83,15 @@ def main():
 
     for epoch in range(NUM_EPOCHS):
         print(f"Number of Epoch: {epoch}")
+        # print(losses)
+        epoch_losses.append(np.average(losses))
+        np.save(os.path.join(os.path.dirname(__file__), '..\\losses\\epoch_losses'), epoch_losses)
+  
 
         train_fn(train_loader, model, optimizer, loss_combined, scaler, losses)
 
         # save model
-        if(epoch % 10 == 0):
+        if(epoch % 3 == 0):
             checkpoint = {
                 "state_dict": model.state_dict(),
                 "optimizer": optimizer.state_dict(),
@@ -93,7 +100,7 @@ def main():
 
             # print some examples to a folder
             save_predictions_as_imgs(
-                val_loader, model, folder="./saved_images", device=DEVICE
+                val_loader, model, loss_combined, folder="./saved_images", device=DEVICE 
             )
 
 
