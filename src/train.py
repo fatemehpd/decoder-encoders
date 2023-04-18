@@ -28,7 +28,7 @@ VAL_IMG_DIR = "./converted_dataset/val_cts"
 VAL_MASK_DIR = "./converted_dataset/val_masks"
 
 
-def train_fn(loader, model, optimizer, loss_fn, scaler):
+def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
     loop = tqdm(loader)
     sigmoid = nn.Sigmoid()
     for batch_idx, (data, targets) in enumerate(loop):
@@ -39,6 +39,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         with torch.cuda.amp.autocast():
             pred = model(data)
             loss, _ = loss_fn(pred, targets)
+            
         # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
@@ -47,12 +48,15 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
         # update tqdm loop
         loop.set_postfix(loss=loss.item())
+        losses.append(loss)
 
 
 def main():
 
     model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
 
+    losses = []
+    print(losses)
     loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
@@ -77,7 +81,7 @@ def main():
     for epoch in range(NUM_EPOCHS):
         print(f"Number of Epoch: {epoch}")
 
-        train_fn(train_loader, model, optimizer, loss_combined, scaler)
+        train_fn(train_loader, model, optimizer, loss_combined, scaler, losses)
 
         # save model
         if(epoch % 10 == 0):
