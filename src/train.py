@@ -14,14 +14,14 @@ from utils import (
 )
 
 # Hyperparameters etc.
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 NUM_EPOCHS = 1000
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 PIN_MEMORY = True
-LOAD_MODEL = False
+LOAD_MODEL = True
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
 TRAIN_MASK_DIR = "./converted_dataset/train_masks"
 VAL_IMG_DIR = "./converted_dataset/val_cts"
