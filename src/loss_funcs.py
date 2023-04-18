@@ -12,7 +12,7 @@ class DiceLoss(nn.Module):
     def forward(self, inputs, targets, smooth=1):
 
         # comment out if your model contains a sigmoid or equivalent activation layer
-        inputs = torch.sigmoid(inputs)
+        #inputs = torch.sigmoid(inputs)
 
         # flatten label and prediction tensors
         inputs = inputs.view(-1)
@@ -20,7 +20,7 @@ class DiceLoss(nn.Module):
 
         intersection = (inputs * targets).sum()
         dice = (2.*intersection + smooth) / \
-            (inputs.sum() + targets.sum() + smooth)
+            ((inputs+ targets).sum() + smooth)
 
         return 1 - dice
 
@@ -52,15 +52,19 @@ class IoULoss(nn.Module):
 class Combined_Loss(nn.Module):
     def __init__(self, weight=None, size_average=True):
         super(Combined_Loss, self).__init__()
+        self.sigmoid = nn.Sigmoid()
+        self.BCE_loss_func = nn.BCEWithLogitsLoss()
+        self.dice_loss_func = DiceLoss()
+        self.IoU_loss_func =  IoULoss()
 
     def forward(self, inputs, targets):
 
-        SCE_loss = nn.CrossEntropyLoss()(inputs, targets)
+        BCE_loss = self.BCE_loss_func(inputs, targets)
 
-        Dice_Loss = DiceLoss()(inputs, targets)
+        Dice_Loss = self.dice_loss_func(self.sigmoid(inputs), targets)
 
-        IoU_Loss = IoULoss()(inputs, targets)
+        #IoU_Loss = IoU_loss_func(self.sigmoid(inputs), targets)
 
-        loss = Dice_Loss
+        loss = [Dice_Loss , BCE_loss]
 
-        return loss
+        return sum(loss), loss 

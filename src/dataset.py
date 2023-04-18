@@ -38,7 +38,7 @@ class CTDataset(Dataset):
 
         Resize = TF.Resize(size=(128, 128)) # do resize to fit data on GPU's RAM
         image = Resize(image)/255.0 #normalize value between 0 and 1
-        mask = Resize(mask)/255.0
+        mask = torch.round(Resize(mask)/255.0)
         return image, mask
 
 
