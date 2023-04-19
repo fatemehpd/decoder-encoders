@@ -59,7 +59,7 @@ def save_predictions_as_imgs(
         with torch.no_grad():
             preds = model(x)
             loss, _ = loss_fn(preds, y.to(device=device))
-            preds = nn.Sigmoid()(preds)
+            preds = preds[:,0,:,:].unsqueeze(1)
             preds = (preds > 0.5).float()
             
         losses.append(loss.item()) 

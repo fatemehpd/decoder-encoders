@@ -23,7 +23,7 @@ NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
 TRAIN_MASK_DIR = "./converted_dataset/train_masks"
 VAL_IMG_DIR = "./converted_dataset/val_cts"
@@ -55,7 +55,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
 
 def main():
 
-    model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
+    model = UNET2D(in_channels=1, out_channels=2).to(DEVICE)
     if LOAD_MODEL:
         epoch_losses = np.load(os.path.join(os.path.dirname(__file__), '..\\losses\\epoch_losses.npy')).tolist()
         val_losses = np.load(os.path.join(os.path.dirname(__file__), '..\\losses\\val_losses.npy')).tolist()
