@@ -47,10 +47,9 @@ def get_loaders(train_dir, train_maskdir, val_dir,
 
 
 def save_predictions_as_imgs(
-        loader, model, loss_fn, folder="./saved_images", device="cuda"):
+        loader, model, loss_fn, val_losses, folder="./saved_images", device="cuda"):
 
     losses = []
-    val_losses = []
     model.eval()
     for idx, (x, y) in enumerate(loader):
         #y = y.to(device=device)

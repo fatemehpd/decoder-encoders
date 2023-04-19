@@ -56,9 +56,14 @@ def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
 def main():
 
     model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
+    if LOAD_MODEL:
+        epoch_losses = np.load(os.path.join(os.path.dirname(__file__), '..\\losses\\epoch_losses.npy')).tolist()
+        val_losses = np.load(os.path.join(os.path.dirname(__file__), '..\\losses\\val_losses.npy')).tolist()
+    else:
+        epoch_losses = []
+        val_losses = []
 
     losses = []
-    epoch_losses = []
     
     loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()
@@ -84,8 +89,10 @@ def main():
     for epoch in range(NUM_EPOCHS):
         print(f"Number of Epoch: {epoch}")
         # print(losses)
-        epoch_losses.append(np.average(losses))
-        np.save(os.path.join(os.path.dirname(__file__), '..\\losses\\epoch_losses'), epoch_losses)
+        if losses != []:
+            epoch_losses.append(np.average(losses))
+            losses = []
+            np.save(os.path.join(os.path.dirname(__file__), '..\\losses\\epoch_losses'), epoch_losses)
   
 
         train_fn(train_loader, model, optimizer, loss_combined, scaler, losses)
@@ -100,7 +107,7 @@ def main():
 
             # print some examples to a folder
             save_predictions_as_imgs(
-                val_loader, model, loss_combined, folder="./saved_images", device=DEVICE 
+                val_loader, model, loss_combined, val_losses, folder="./saved_images", device=DEVICE 
             )
 
 
