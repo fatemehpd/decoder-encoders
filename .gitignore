@@ -6,3 +6,4 @@ saved_images/
 __pycache__/
 **/my_checkpoint.pth.tar
 New_folder/
+losses/

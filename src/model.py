@@ -247,7 +247,7 @@ class UNET2D(nn.Module):
         # check number of classes to segment and toggle softmax
         # check kind of loss function and toggle sigmoid
         # get input to print output shape or not
-        # x = self.softmax(x)
+        x = self.softmax(x)
         # print(x.shape)
         # x = self.sigmoid(x)
 

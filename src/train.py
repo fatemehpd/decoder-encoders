@@ -21,7 +21,7 @@ NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 PIN_MEMORY = True
-LOAD_MODEL = True
+LOAD_MODEL = False
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
 TRAIN_MASK_DIR = "./converted_dataset/train_masks"
 VAL_IMG_DIR = "./converted_dataset/val_cts"
@@ -38,7 +38,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
         # forward
         with torch.cuda.amp.autocast():
             pred = model(data)
-            loss, _ = loss_fn(pred, targets)
+            loss = loss_fn(pred, targets)
         # backward
         optimizer.zero_grad()
         scaler.scale(loss).backward()
@@ -51,12 +51,12 @@ def train_fn(loader, model, optimizer, loss_fn, scaler):
 
 def main():
 
-    model = UNET2D(in_channels=1, out_channels=1).to(DEVICE)
+    model = UNET2D(in_channels=1, out_channels=2).to(DEVICE)
 
     loss_fn1 = nn.BCEWithLogitsLoss()
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
-    loss_fn4 = nn.MSELoss()
+    loss_fn4 = nn.CrossEntropyLoss()
     loss_combined = Combined_Loss()
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
@@ -77,7 +77,7 @@ def main():
     for epoch in range(NUM_EPOCHS):
         print(f"Number of Epoch: {epoch}")
 
-        train_fn(train_loader, model, optimizer, loss_combined, scaler)
+        train_fn(train_loader, model, optimizer, loss_fn4, scaler)
 
         # save model
         if(epoch % 10 == 0):
