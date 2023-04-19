@@ -18,7 +18,7 @@ from utils import (
 # Hyperparameters etc.
 LEARNING_RATE = 1e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-NUM_EPOCHS = 1000
+NUM_EPOCHS = 5000
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
@@ -32,8 +32,11 @@ VAL_MASK_DIR = "./converted_dataset/val_masks"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
     loop = tqdm(loader)
+    i = 0
     sigmoid = nn.Sigmoid()
     for batch_idx, (data, targets) in enumerate(loop):
+
+        i += targets.sum()/targets.shape[0]
         data = data.to(device=DEVICE)
         targets = targets.to(device=DEVICE)
 
@@ -51,6 +54,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
         # update tqdm loop
         loop.set_postfix(loss=loss.item())
         losses.append(loss.item())
+    print(i)
 
 
 def main():
@@ -69,7 +73,7 @@ def main():
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
     loss_fn4 = nn.MSELoss()
-    loss_combined = Combined_Loss()
+    loss_combined = Combined_Loss(CE_weight=[50.,1.])
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(

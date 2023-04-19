@@ -50,21 +50,20 @@ class IoULoss(nn.Module):
 
 
 class Combined_Loss(nn.Module):
-    def __init__(self, weight=None, size_average=True):
+    def __init__(self, weight=None, size_average=True,CE_weight = None):
         super(Combined_Loss, self).__init__()
         self.sigmoid = nn.Sigmoid()
         self.BCE_loss_func = nn.BCEWithLogitsLoss()
+        self.CE_loss_func = nn.CrossEntropyLoss(weight = torch.tensor(CE_weight), reduction = None)
         self.dice_loss_func = DiceLoss()
         self.IoU_loss_func =  IoULoss()
 
     def forward(self, inputs, targets):
 
-        BCE_loss = self.BCE_loss_func(inputs, targets)
+        CE_loss = self.CE_loss_func(inputs, targets)
 
         Dice_Loss = self.dice_loss_func(self.sigmoid(inputs), targets)
 
-        #IoU_Loss = IoU_loss_func(self.sigmoid(inputs), targets)
-
-        loss = [Dice_Loss , BCE_loss]
+        loss = [Dice_Loss , 5*CE_loss]
 
         return sum(loss), loss 

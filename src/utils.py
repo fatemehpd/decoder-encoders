@@ -64,7 +64,7 @@ def save_predictions_as_imgs(
             
         losses.append(loss.item()) 
         torchvision.utils.save_image(preds, f"{folder}/{idx}_pred.png")
-        torchvision.utils.save_image(y, f"{folder}/{idx}_save.png")
+        torchvision.utils.save_image(y[:,0,:,:].unsqueeze(1), f"{folder}/{idx}_save.png")
     
     val_losses.append(np.average(losses))
     np.save(os.path.join(os.path.dirname(__file__), '..\\losses\\val_losses'), val_losses)
