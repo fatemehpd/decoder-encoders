@@ -71,7 +71,7 @@ def main():
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
     loss_fn4 = nn.MSELoss()
-    loss_combined = Combined_Loss(CE_weight=torch.tensor([0.94,0.06]).to(DEVICE))
+    loss_combined = Combined_Loss(CE_weight=torch.tensor([0.96,0.04]).to(DEVICE))
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(
@@ -95,7 +95,7 @@ def main():
             epoch_losses.append(np.average(losses))
             losses = []
             np.save(os.path.join(os.path.dirname(__file__), '..\\losses\\epoch_losses'), epoch_losses)
-  
+            print(epoch_losses[-1])
 
         train_fn(train_loader, model, optimizer, loss_combined, scaler, losses)
 

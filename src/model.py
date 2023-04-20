@@ -249,7 +249,7 @@ class UNET2D(nn.Module):
         # get input to print output shape or not
         #x = self.softmax(x)
         # print(x.shape)
-        # x = self.sigmoid(x)
+        #x = self.sigmoid(x)
 
         return x
 
