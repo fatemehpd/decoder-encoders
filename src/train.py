@@ -23,7 +23,7 @@ NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
 PIN_MEMORY = True
-LOAD_MODEL = False
+LOAD_MODEL = True
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
 TRAIN_MASK_DIR = "./converted_dataset/train_masks"
 VAL_IMG_DIR = "./converted_dataset/val_cts"
@@ -32,11 +32,9 @@ VAL_MASK_DIR = "./converted_dataset/val_masks"
 
 def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
     loop = tqdm(loader)
-    i = 0
     sigmoid = nn.Sigmoid()
     for batch_idx, (data, targets) in enumerate(loop):
 
-        i += targets.sum()/targets.shape[0]
         data = data.to(device=DEVICE)
         targets = targets.to(device=DEVICE)
 
@@ -47,6 +45,7 @@ def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
             
         # backward
         optimizer.zero_grad()
+
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
@@ -54,7 +53,6 @@ def train_fn(loader, model, optimizer, loss_fn, scaler, losses):
         # update tqdm loop
         loop.set_postfix(loss=loss.item())
         losses.append(loss.item())
-    print(i)
 
 
 def main():
@@ -73,7 +71,7 @@ def main():
     loss_fn2 = IoULoss()
     loss_fn3 = DiceLoss()
     loss_fn4 = nn.MSELoss()
-    loss_combined = Combined_Loss(CE_weight=[50.,1.])
+    loss_combined = Combined_Loss(CE_weight=torch.tensor([0.94,0.06]).to(DEVICE))
     optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE)
 
     train_loader, val_loader = get_loaders(
