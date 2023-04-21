@@ -29,14 +29,18 @@ class CTDataset(Dataset):
         image = np.load(img_path)
         mask = np.load(mask_path)
 
-        #TODO: add comment about transform and the reason of unsqueeze
+        # these folllowing two lines are used to apply this list of transformations
+        # to the image and mask NumPy arrays, respectively, and return their 
+        # corresponding PyTorch tensors.
+
         image = transforms.Compose([transforms.ToTensor()])(image)
         mask = transforms.Compose([transforms.ToTensor()])(mask)
 
+        # adjust dimenstions to (batchsize, channel, height, width)
         image = torch.unsqueeze(image, dim=1).float()
         mask = torch.unsqueeze(mask, dim=1).float()
 
-        Resize = TF.Resize(size=(128, 128)) # do resize to fit data on GPU's RAM
+        Resize = TF.Resize(size=(128, 128)) # do resize to fit data on GPU VRAM
         image = Resize(image)/255.0 #normalize value between 0 and 1
         mask = torch.round(Resize(mask)/255.0)
         mask = torch.cat((mask, 1-mask), dim=1)      

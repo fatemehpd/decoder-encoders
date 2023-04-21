@@ -29,7 +29,7 @@ class DiceLoss(nn.Module):
         dice = torch.tensor(0.,requires_grad=True)
         # flatten label and prediction tensors
         for i in range(inputs.shape[1]):
-            dice = dice +self.dice_function(inputs[:,i,:,:], targets[:,i,:,:])
+            dice = dice + self.dice_function(inputs[:,i,:,:], targets[:,i,:,:])
         return dice
 
 

@@ -570,13 +570,27 @@ class UPSAMPLE3D(nn.Module):
         dilations=[1, 2, 4, 8],
         batchNorm=True,
     ):
+        """
+        Args:
+            in_channels (int): The number of input channels.
+            out_channels (int, optional): The number of output channels. Defaults to 4.
+            up_size (int, optional): The desired size of the upsampled output. Defaults to 128.
+            dilations (list of int, optional): A list of dilation values for the convolutional layers. Defaults to [1, 2, 4, 8].
+            batchNorm (bool, optional): Whether or not to use batch normalization. Defaults to True.
+        """
         super(UPSAMPLE3D, self).__init__()
+
+        # Define a list to store the dilated convolutional layers
         self.ds = nn.ModuleList()
+
+        # Save the number of input channels and whether or not to use batch normalization
         self.in_channels = in_channels
         self.batchNorm = batchNorm
 
+        # Create the first convolutional layer
         self.first_conv = Double3DConv(in_channels, out_channels)
 
+        # Create the dilated convolutional layers
         for dilation in dilations:
             self.ds.append(Double3DConv(in_channels = out_channels, 
             out_channels = out_channels,
@@ -584,36 +598,59 @@ class UPSAMPLE3D(nn.Module):
             padding= dilation
             ))
 
+        # Create the upsampling layer
         self.upsample = nn.Upsample(size= up_size, mode='nearest')
 
+        # Create the fully connected layers
         self.FClayers = nn.Sequential(
             nn.Linear(in_features= out_channels*4, out_features= out_channels*32),
             nn.Linear(in_features= out_channels*32, out_features= 1),
         )
 
-         
     def forward(self, x):
+
+        # Apply the first convolutional layer to the input
         x = self.first_conv(x)
+
+        # Upsample the output
         x = self.upsample(x)
+
+        # Create a list to store the output of each dilated convolutional layer
         ds = []
 
+        # Apply each dilated convolutional layer to the upsampled output
         for d in self.ds:
             ds.append(d(x))
 
+        # Concatenate the output of each dilated convolutional layer with the upsampled output
         for idx, d in enumerate(self.ds):
             if(idx != 0):
                 x = torch.cat((ds[idx], x), dim=0)
             else:
                 x = ds[idx]
 
+        # Permute the output tensor to prepare it for the fully connected layers
         x = x.permute(1, 2, 3, 0)
+
+        # Apply the fully connected layers to the output tensor
         x = self.FClayers(x)
-           
+
         return x
 
 
 class xnet(nn.Module):
-    """Some Information about xnet"""
+    """
+    A 2D-3D hybrid UNet architecture for medical image segmentation.
+
+    Args:
+        in_channels (int): number of input channels. Default is 3.
+        out_channels (int): number of output channels. Default is 3.
+        kernel (list[int]): size of convolutional kernels. Default is [3, 3, 3, 3].
+        padding (list[int]): size of zero padding added to all sides of the input. Default is [1, 1, 1, 1].
+        stride (list[int]): stride of convolutional kernels. Default is [1, 1, 1, 1].
+        batchNorm (bool): whether to use batch normalization after convolutional layers. Default is True.
+        features (list[int]): number of output features for each convolutional layer. Default is [64, 128, 256, 512].
+    """
 
     def __init__(
         self,
@@ -626,6 +663,8 @@ class xnet(nn.Module):
         features=[64, 128, 256, 512],
     ):
         super(xnet, self).__init__()
+
+        # 3D encoder
         self.UNETEncoder3D = UNETEncoder3D(
             in_channels=in_channels,
             kernel=kernel,
@@ -634,6 +673,7 @@ class xnet(nn.Module):
             batchNorm=batchNorm,
             features=features,
         )
+        # 2D encoder
         self.UNETEncoder2D = UNETEncoder2D(
             in_channels=in_channels,
             kernel=kernel,
@@ -642,6 +682,7 @@ class xnet(nn.Module):
             batchNorm=batchNorm,
             features=features,
         )
+        # 3D decoder
         self.UNETDecoder3D = UNETDecoder3D(
             out_channels=out_channels,
             kernel=kernel,
@@ -650,6 +691,7 @@ class xnet(nn.Module):
             batchNorm=batchNorm,
             features=features,
         )
+        # 2D decoder
         self.UNETDecoder2D = UNETDecoder2D(
             out_channels=out_channels,
             kernel=kernel,
@@ -659,12 +701,15 @@ class xnet(nn.Module):
             features=features,
         )
 
+        # 3D and 2D bottlenecks
         self.bottleneck3D = Double3DConv(
             features[-1], features[-1] * 2, batchNorm=batchNorm, kernel_size=3
         )
         self.bottleneck2D = Double2DConv(
             features[-1], features[-1] * 2, batchNorm=batchNorm, kernel_size=3
         )
+
+        # Final 3D convolutional layers
 
         """we supposed that the features[0] index is equal to 64"""
         """TODO: make this code modular"""
@@ -730,28 +775,31 @@ class xnet(nn.Module):
         )
 
     def forward(self, x: torch.Tensor):
+        # permute x to have dimensions in 3d form
         x3D = x.permute(1, 0, 2, 3)
 
+        # pass x through the 2D and 3D UNET encoders to obtain features at different resolutions, as well as skip connections
         x2D, skip_connections2D = self.UNETEncoder2D(x)
         x3D, skip_connections3D = self.UNETEncoder3D(x3D)
 
+        # pass the features through the bottleneck layers
         x2D = self.bottleneck2D(x2D).permute(1, 0, 2, 3)
         x3D = self.bottleneck3D(x3D)
 
+        # concatenate the bottleneck outputs
         concat_bottleNeck = torch.cat((x2D, x3D), dim=0)
         x2D = concat_bottleNeck.permute(1, 0, 2, 3)
         x3D = concat_bottleNeck
-        
 
+        # pass the concatenated bottleneck output through the UNET decoders
         x2D = self.UNETDecoder2D(x2D, skip_connections2D)
         x3D = self.UNETDecoder3D(x3D, skip_connections3D)
 
+        # apply final convolutional layers to each output stream
         x2D = self.finalConv2D(x2D)
         x3D = torch.squeeze(self.finalConv3D(x3D.unsqueeze(0)),0).permute(1, 0, 2, 3)
 
-        print(x2D.shape)
-        print(x3D.shape)
-
+        # concatenate the final outputs of the 2D and 3D streams
         concat_finalLayer = torch.cat((x2D, x3D), dim=1)
         # x = self.finalBatchNorm(concat_finalLayer)
         x = self.finalConv(concat_finalLayer)
@@ -759,8 +807,29 @@ class xnet(nn.Module):
 
 
 class XNET_UPSAMPLE(nn.Module):
-    """Some Information about xnet"""
-
+    """
+    XNET_UPSAMPLE is a 3D-2D U-Net style architecture that uses a 3D encoder 
+    and a 2D encoder to extract spatio-temporal and 2D spatial features 
+    respectively, and then concatenates the feature maps and performs a 2D 
+    upsampling operation to recover the original input resolution. 
+    This architecture is designed for medical image segmentation tasks.
+    
+    Args:
+    - in_channels (int): Number of input channels (default: 3)
+    - out_channels (int): Number of output channels (default: 3)
+    - kernel (list of ints): List of kernel sizes for the convolutions in the
+      encoder and decoder (default: [3, 3, 3, 3])
+    - padding (list of ints): List of padding sizes for the convolutions in the
+      encoder and decoder (default: [1, 1, 1, 1])
+    - stride (list of ints): List of stride sizes for the convolutions in the
+      encoder and decoder (default: [1, 1, 1, 1])
+    - batchNorm (bool): Whether or not to use batch normalization (default: True)
+    - features (list of ints): List of feature map sizes for the convolutions in
+      the encoder and decoder (default: [64, 128, 256, 512])
+    - upsample_out_channels (int): Number of output channels for the 3D-to-2D
+      upsampling operation (default: 4)
+    """
+    
     def __init__(
         self,
         in_channels=3,
@@ -770,9 +839,11 @@ class XNET_UPSAMPLE(nn.Module):
         stride=[1, 1, 1, 1],
         batchNorm=True,
         features=[64, 128, 256, 512],
-        upsample_out_channels = 4
+        upsample_out_channels=4
     ):
         super(XNET_UPSAMPLE, self).__init__()
+
+        # 3D encoder
         self.UNETEncoder3D = UNETEncoder3D(
             in_channels=in_channels,
             kernel=kernel,
@@ -781,6 +852,8 @@ class XNET_UPSAMPLE(nn.Module):
             batchNorm=batchNorm,
             features=features,
         )
+
+        # 2D encoder
         self.UNETEncoder2D = UNETEncoder2D(
             in_channels=in_channels,
             kernel=kernel,
@@ -789,10 +862,14 @@ class XNET_UPSAMPLE(nn.Module):
             batchNorm=batchNorm,
             features=features,
         )
+
+        # 3D-to-2D upsampling layer
         self.UPSAMPLE3D = UPSAMPLE3D(
-            in_channels= features[-1] * 4,
-            out_channels= upsample_out_channels,
+            in_channels=features[-1] * 4,
+            out_channels=upsample_out_channels,
         )
+
+        # 2D decoder
         self.UNETDecoder2D = UNETDecoder2D(
             out_channels=out_channels,
             kernel=kernel,
@@ -845,23 +922,30 @@ class XNET_UPSAMPLE(nn.Module):
         )
 
     def forward(self, x: torch.Tensor):
+        # Permute x to change dimensions of channel and batch 
         x3D = x.permute(1, 0, 2, 3)
 
+        # Apply the 2D and 3D encoders
         x2D, skip_connections2D = self.UNETEncoder2D(x)
         x3D, _ = self.UNETEncoder3D(x3D)
 
+        # Apply the 2D and 3D bottlenecks
         x2D = self.bottleneck2D(x2D).permute(1, 0, 2, 3)
         x3D = self.bottleneck3D(x3D)
 
+        # Concatenate the bottleneck outputs
         concat_bottleNeck = torch.cat((x2D, x3D), dim=0)
         x2D = concat_bottleNeck.permute(1, 0, 2, 3)
         x3D = concat_bottleNeck
         
+        # Apply the 2D decoder and 3D upsampling
         x2D = self.UNETDecoder2D(x2D, skip_connections2D)
         x3D = self.UPSAMPLE3D(x3D).permute(0, 3, 1, 2)
 
+        # Apply the final 2D convolutional layer
         x2D = self.finalConv2D(x2D)
 
+        # Concatenate the 2D and 3D outputs
         concat_finalLayer = torch.cat((x2D, x3D), dim=1)
         # x = self.finalBatchNorm(concat_finalLayer)
         x = self.finalConv(concat_finalLayer)
@@ -869,17 +953,7 @@ class XNET_UPSAMPLE(nn.Module):
 
 
 def test():
-    # TODO: add comment about specifications of test function and replace
-    # test function to test folder
-    x = torch.randn(1024, 50, 12, 12)
-    # print(x[0].shape)
-    model = UPSAMPLE3D(in_channels= 1024)
-    preds = model(x)
-    print(preds.shape)
-    # x = x.to(device=DEVICE)
-
-    # model = UNET2D(in_channels=1, out_channels=1).to(device=DEVICE)
-    # preds = model(x)
+    # this a test for monitoring amount of vram that occupied for training the model
     print(
         "torch.cuda.max_memory_reserved: %fGB"
         % (torch.cuda.max_memory_reserved(0) / 1024 / 1024 / 1024)
@@ -898,6 +972,8 @@ if __name__ == "__main__":
 
     img4 = torch.randn(50, 1, 128, 128)
     print(img4.shape)
+
+    # here you can check all of the main models that written in this files and see the output result 
     model = XNET_UPSAMPLE(in_channels=1, out_channels=1)
     preds = model(img4)
     print(preds.shape)
