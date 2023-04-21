@@ -92,7 +92,7 @@ class Combined_Loss(nn.Module):
         WCE_loss = self.WCE_loss_func(inputs, targets)
         Dice_Loss = self.dice_loss_func(nn.Softmax2d()(inputs), targets)
 
-        loss = [10*Dice_Loss, 4*WCE_loss]
+        loss = [8*Dice_Loss, 5*WCE_loss]
 
         return sum(loss), loss
 
