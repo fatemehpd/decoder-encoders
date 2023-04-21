@@ -29,7 +29,7 @@ class CTDataset(Dataset):
             to True. Defaults to True.
             resize_size (tuple[int, int], optional): if resize is Ture
             pass output dimensions. Defaults to (128, 128).
-        """ 
+        """
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.images = os.listdir(image_dir)
@@ -60,15 +60,17 @@ class CTDataset(Dataset):
         mask = torch.unsqueeze(mask, dim=1).float()
 
         if self.resize:
-            image = Resize(image) / 255.0  # normalize value between 0 and 1
+            image = (
+                self.resize_func(image) / 255.0
+            )  # normalize value between 0 and 1
             mask = torch.round(
-                Resize(mask) / 255.0
+                self.resize_func(mask) / 255.0
             )  # make sure indexes are 1 and 0
         else:
             image = image / 255.0  # normalize value between 0 and 1
             mask = torch.round(mask / 255.0)  # make sure indexes are 1 and 0
 
-        # change below code proportionally to your dataset and your goal
+        # NOTE: change below code proportionally to your dataset and your goal
         mask = torch.cat((mask, 1 - mask), dim=1)
 
         return image, mask

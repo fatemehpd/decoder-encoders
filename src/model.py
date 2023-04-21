@@ -11,28 +11,30 @@ class Double2DConv(nn.Module):
 
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        batchNorm=True,
-        kernel_size=[3, 3],
-        stride_size=1,
-        padding=1,
-        activation=nn.ReLU(inplace=True),
-    ):
-        """generate 2 serial convolution layers
+        in_channels: int,
+        out_channels: int,
+        batchNorm: bool = True,
+        kernel_size: list[int, int] = [3, 3],
+        stride_size: int = 1,
+        padding: int = 1,
+        activation: torch.nn.modules.activation = nn.ReLU(inplace=True),
+    ) -> None:
+        """
+        this class create two serial 2D CNN
 
         Args:
             in_channels (int): number of input channels
             out_channels (int): number of output channels
             batchNorm (boolean, optuional): have batchnormalization
             layer or not
-            kernel_size (list, optional): Defaults to [3, 3].
+            kernel_size (list[int,int], optional): Defaults to [3, 3].
             stride_size (int, optional): Defaults to 1.
             padding (int, optional): Defaults to 1.
-            activation (torch.nn.modules.activation, optional) specific
-            activation function
+            activation (torch.nn.modules.activation, optional): specific
+            activation function. Defaults to nn.ReLU(inplace=True).
         """
         super(Double2DConv, self).__init__()
+        # TODO: remove sequential form of this class
         if batchNorm:
             self.conv = nn.Sequential(
                 nn.Conv2d(
@@ -78,7 +80,7 @@ class Double2DConv(nn.Module):
                 activation,
             )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """copmute the output of 2 cnn layers"""
         return self.conv(x)
 
@@ -89,28 +91,45 @@ class UNETEncoder2D(nn.Module):
 
     def __init__(
         self,
-        in_channels=3,
-        kernel=[3, 3, 3, 3],
-        padding=[1, 1, 1, 1],
-        stride=[1, 1, 1, 1],
-        batchNorm=True,
-        features=[64, 128, 256, 512],
-    ):
+        in_channels: int = 3,
+        kernel: list[int] = [3, 3, 3, 3],
+        padding: list[int] = [1, 1, 1, 1],
+        stride: list[int] = [1, 1, 1, 1],
+        batchNorm: bool = True,
+        features: list[int] = [64, 128, 256, 512],
+    ) -> None:
+        """this class use multiple Double CNN 2D and create a simple
+        encoder. return of forward method of this class is an image with
+        2*features[-1] channels and skip connections that saved after
+        each maxpool2D. this class dosent contain bottleneck layer.
+
+        Args:
+            in_channels (int, optional): number of input channels. Defaults to 3.
+            kernel (list[int], optional): Defaults to [3, 3, 3, 3].
+            padding (list[int], optional): Defaults to [1, 1, 1, 1].
+            stride (list[int], optional): Defaults to [1, 1, 1, 1].
+            batchNorm (bool, optional): _description_. Defaults to True.
+            features (list[int], optional): number of features
+            after each doubleConv2D. Defaults to [64, 128, 256, 512].
+        """
         super(UNETEncoder2D, self).__init__()
 
-        self.downs = nn.ModuleList()
+        self.downs = nn.ModuleList()  # list of CNNs
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.skip_connections = []
 
         for feature in features:
             self.downs.append(
                 Double2DConv(in_channels, feature, batchNorm=batchNorm)
-            )
+            )  # TODO: make above initialization dependent on other
+            #      argumans of __init__
             in_channels = feature
 
-    def forward(self, x):
+    def forward(
+        self, x: torch.tensor
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
         self.skip_connections = []
-        for down in self.downs:
+        for down in self.downs:  # loop(conv -> maxpool)
             x = down(x)
             self.skip_connections.append(x)
             x = self.pool(x)
@@ -123,20 +142,34 @@ class UNETDecoder2D(nn.Module):
 
     def __init__(
         self,
-        out_channels=3,
-        kernel=[3, 3, 3, 3],
-        padding=[1, 1, 1, 1],
-        stride=[1, 1, 1, 1],
+        out_channels: int = 3,
+        kernel: list[int] = [3, 3, 3, 3],
+        padding: list[int] = [1, 1, 1, 1],
+        stride: list[int] = [1, 1, 1, 1],
         batchNorm=True,
-        features=[64, 128, 256, 512],
-    ):
+        features: list[int] = [64, 128, 256, 512],
+    ) -> None:
+        """
+        this class contains the structure of a simple decoder.
+        you should consider that forward method requiers
+        skip connections that collected from encoder part.
+
+        Args:
+            out_channels (int, optional): Defaults to 3.
+            kernel (list[int], optional): Defaults to [3, 3, 3, 3].
+            padding (list[int], optional): Defaults to [1, 1, 1, 1].
+            stride (list[int], optional): Defaults to [1, 1, 1, 1].
+            batchNorm (bool, optional): Defaults to True.
+            features (list[int], optional):number of features
+            in indexes of skip connection. Defaults to [64, 128, 256, 512].
+        """
         super(UNETDecoder2D, self).__init__()
 
         self.ups = nn.ModuleList()
         self.out_channels = out_channels
         self.initConv = nn.Conv2d(
             features[-1] * 4, features[-1] * 2, 3, padding=1
-        )
+        )  # NOTE: consider that initConv is customized for X_NET
 
         for feature in reversed(features):
             self.ups.append(
@@ -151,7 +184,9 @@ class UNETDecoder2D(nn.Module):
                 Double2DConv(feature * 2, feature, batchNorm=batchNorm)
             )
 
-    def forward(self, x, skip_connections):
+    def forward(
+        self, x: torch.tensor, skip_connections: list[torch.Tensor]
+    ) -> torch.Tensor:
         skip_connections = skip_connections[::-1]
         x = self.initConv(x)
         for idx in range(0, len(self.ups), 2):
@@ -170,19 +205,20 @@ class UNET2D(nn.Module):
     """basic Unet network implementation based on the below paper
     https://doi.org/10.48550/arXiv.1505.04597"""
 
+    # TODO: reconstruct with decoder and encoder classes see xnet class
     def __init__(
         self,
-        in_channels=3,
-        out_channels=3,
-        features=[64, 128, 256, 512]
+        in_channels: int = 3,
+        out_channels: int = 3,
+        features: list[int] = [64, 128, 256, 512]
         # TODO: add kernel padding stride batchnorm
-    ):
-        """setup 2-D U_NET network
+    ) -> None:
+        """this class contatin structure of 2-D U_NET network
 
         Args:
             in_channels (int, optional): Defaults to 3.
             out_channels (int, optional):  Defaults to 3.
-            features (list, optional): Defaults to [64, 128, 256, 512].
+            features (list[int], optional): Defaults to [64, 128, 256, 512].
         """
         super(UNET2D, self).__init__()
         self.ups = nn.ModuleList()
@@ -247,9 +283,9 @@ class UNET2D(nn.Module):
         # check number of classes to segment and toggle softmax
         # check kind of loss function and toggle sigmoid
         # get input to print output shape or not
-        #x = self.softmax(x)
+        # x = self.softmax(x)
         # print(x.shape)
-        #x = self.sigmoid(x)
+        # x = self.sigmoid(x)
 
         return x
 
@@ -259,29 +295,30 @@ class Double3DConv(nn.Module):
 
     def __init__(
         self,
-        in_channels,
-        out_channels,
-        batchNorm=True,
-        kernel_size=3,
-        stride_size=1,
-        padding=1,
-        dilation=1,
-        activation=nn.ReLU(inplace=True),
-    ):
-        """generate 2 serial convolution layers
+        in_channels: int,
+        out_channels: int,
+        batchNorm: bool = True,
+        kernel_size: int = 3,
+        stride_size: int = 1,
+        padding: int = 1,
+        dilation: int = 1,
+        activation: torch.nn.modules.activation = nn.ReLU(inplace=True),
+    ) -> None:
+        """this class create two serial 3D CNN
 
         Args:
-            in_channels (int): number of input channels
-            out_channels (int): number of output channels
-            batchNorm (boolean, optuional): have batchnormalization
-            layer or not
-            kernel_size (list, optional): Defaults to [3, 3].
+            in_channels (int):
+            out_channels (int):
+            batchNorm (bool, optional): Defaults to True.
+            kernel_size (int, optional): Defaults to 3.
             stride_size (int, optional): Defaults to 1.
             padding (int, optional): Defaults to 1.
-            activation (torch.nn.modules.activation, optional) specific
-            activation function
+            dilation (int, optional): Defaults to 1.
+            activation (torch.nn.modules.activation, optional):
+            Defaults to nn.ReLU(inplace=True).
         """
         super(Double3DConv, self).__init__()
+        # TODO: remove sequential form of this class
         if batchNorm:
             self.conv = nn.Sequential(
                 nn.Conv3d(
@@ -565,8 +602,8 @@ class UPSAMPLE3D(nn.Module):
     def __init__(
         self,
         in_channels,
-        out_channels = 4,
-        up_size = 128,
+        out_channels=4,
+        up_size=128,
         dilations=[1, 2, 4, 8],
         batchNorm=True,
     ):
@@ -578,20 +615,24 @@ class UPSAMPLE3D(nn.Module):
         self.first_conv = Double3DConv(in_channels, out_channels)
 
         for dilation in dilations:
-            self.ds.append(Double3DConv(in_channels = out_channels, 
-            out_channels = out_channels,
-            dilation= dilation,
-            padding= dilation
-            ))
+            self.ds.append(
+                Double3DConv(
+                    in_channels=out_channels,
+                    out_channels=out_channels,
+                    dilation=dilation,
+                    padding=dilation,
+                )
+            )
 
-        self.upsample = nn.Upsample(size= up_size, mode='nearest')
+        self.upsample = nn.Upsample(size=up_size, mode="nearest")
 
         self.FClayers = nn.Sequential(
-            nn.Linear(in_features= out_channels*4, out_features= out_channels*32),
-            nn.Linear(in_features= out_channels*32, out_features= 1),
+            nn.Linear(
+                in_features=out_channels * 4, out_features=out_channels * 32
+            ),
+            nn.Linear(in_features=out_channels * 32, out_features=1),
         )
 
-         
     def forward(self, x):
         x = self.first_conv(x)
         x = self.upsample(x)
@@ -601,14 +642,14 @@ class UPSAMPLE3D(nn.Module):
             ds.append(d(x))
 
         for idx, d in enumerate(self.ds):
-            if(idx != 0):
+            if idx != 0:
                 x = torch.cat((ds[idx], x), dim=0)
             else:
                 x = ds[idx]
 
         x = x.permute(1, 2, 3, 0)
         x = self.FClayers(x)
-           
+
         return x
 
 
@@ -724,7 +765,7 @@ class xnet(nn.Module):
             ),
             nn.ReLU(inplace=True),
         )
-        self.finalBatchNorm = nn.BatchNorm2d(out_channels*2)
+        self.finalBatchNorm = nn.BatchNorm2d(out_channels * 2)
         self.finalConv = nn.Conv2d(
             out_channels * 2, out_channels, kernel_size=1
         )
@@ -741,13 +782,14 @@ class xnet(nn.Module):
         concat_bottleNeck = torch.cat((x2D, x3D), dim=0)
         x2D = concat_bottleNeck.permute(1, 0, 2, 3)
         x3D = concat_bottleNeck
-        
 
         x2D = self.UNETDecoder2D(x2D, skip_connections2D)
         x3D = self.UNETDecoder3D(x3D, skip_connections3D)
 
         x2D = self.finalConv2D(x2D)
-        x3D = torch.squeeze(self.finalConv3D(x3D.unsqueeze(0)),0).permute(1, 0, 2, 3)
+        x3D = torch.squeeze(self.finalConv3D(x3D.unsqueeze(0)), 0).permute(
+            1, 0, 2, 3
+        )
 
         print(x2D.shape)
         print(x3D.shape)
@@ -770,7 +812,7 @@ class XNET_UPSAMPLE(nn.Module):
         stride=[1, 1, 1, 1],
         batchNorm=True,
         features=[64, 128, 256, 512],
-        upsample_out_channels = 4
+        upsample_out_channels=4,
     ):
         super(XNET_UPSAMPLE, self).__init__()
         self.UNETEncoder3D = UNETEncoder3D(
@@ -790,8 +832,8 @@ class XNET_UPSAMPLE(nn.Module):
             features=features,
         )
         self.UPSAMPLE3D = UPSAMPLE3D(
-            in_channels= features[-1] * 4,
-            out_channels= upsample_out_channels,
+            in_channels=features[-1] * 4,
+            out_channels=upsample_out_channels,
         )
         self.UNETDecoder2D = UNETDecoder2D(
             out_channels=out_channels,
@@ -839,7 +881,7 @@ class XNET_UPSAMPLE(nn.Module):
             ),
             nn.ReLU(inplace=True),
         )
-        self.finalBatchNorm = nn.BatchNorm2d(out_channels*2)
+        self.finalBatchNorm = nn.BatchNorm2d(out_channels * 2)
         self.finalConv = nn.Conv2d(
             out_channels * 2, out_channels, kernel_size=1
         )
@@ -856,7 +898,7 @@ class XNET_UPSAMPLE(nn.Module):
         concat_bottleNeck = torch.cat((x2D, x3D), dim=0)
         x2D = concat_bottleNeck.permute(1, 0, 2, 3)
         x3D = concat_bottleNeck
-        
+
         x2D = self.UNETDecoder2D(x2D, skip_connections2D)
         x3D = self.UPSAMPLE3D(x3D).permute(0, 3, 1, 2)
 
@@ -873,7 +915,7 @@ def test():
     # test function to test folder
     x = torch.randn(1024, 50, 12, 12)
     # print(x[0].shape)
-    model = UPSAMPLE3D(in_channels= 1024)
+    model = UPSAMPLE3D(in_channels=1024)
     preds = model(x)
     print(preds.shape)
     # x = x.to(device=DEVICE)
