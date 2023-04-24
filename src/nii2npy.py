@@ -19,7 +19,7 @@ import glob
 import numpy as np
 
 
-class nii2npy():
+class nii2npy:
     def __init__(self, path):
         """get the path of the nifti file
         Args:
@@ -44,7 +44,7 @@ class nii2npy():
         num_slices = ct_scan.shape[2]
         for s in range(num_slices):
             slice_s = ct_scan[:, :, s]
-            slice_s = (slice_s - w_min)*(255/(w_max-w_min))
+            slice_s = (slice_s - w_min) * (255 / (w_max - w_min))
             slice_s[slice_s < 0] = 0
             slice_s[slice_s > 255] = 255
             ct_scan[:, :, s] = slice_s
@@ -55,8 +55,14 @@ class nii2npy():
         splited_path = path.split("\\")
         return splited_path[-1].replace(extentinon, "")
 
-    def convert(self, w_level=40, w_width=120,
-                dir_name="converted_dataset", isMask = False):
+    def convert(
+        self,
+        w_level=40,
+        w_width=120,
+        dir_name="converted_dataset",
+        isMask=False,
+        extend=False,
+    ):
         """convert and save nifti as numpy array
 
         Args:
@@ -66,10 +72,11 @@ class nii2npy():
             Defaults to 120.
             save_to (str, optional):path to save your files.
             Defaults to "..\converted dataset".
+            extend (bool, optional): whether to save slices individually or not
         """
         save_to = self.dirPath
         while os.listdir(save_to).count("__init__.py"):
-            save_to, _  = os.path.split(save_to)
+            save_to, _ = os.path.split(save_to)
         paths = dir_name.split("\\")
         for path in paths:
             if not os.path.exists(os.path.join(save_to, path)):
@@ -83,29 +90,33 @@ class nii2npy():
             if not isMask:
                 ct = self._window(ct, w_level, w_width)
             name = self._get_name(path)
-            np.save(os.path.join(save_to, name), ct)
-            print(str(name) +'   '+str(ct.max()) +"   " +str(ct.min()))
+            if extend:
+                for i in range(ct.shape[-1]):
+                    np.save(os.path.join(save_to, name + "_" + str(i)), ct[:, :, i])
+            else:
+                np.save(os.path.join(save_to, name), ct)
+                print(str(name) + "   " + str(ct.max()) + "   " + str(ct.min()))
 
 
 if __name__ == "__main__":
-    #farayand path
+    # farayand path
     mask_paths = ["..\\dataSet\\train_masks", "..\\dataSet\\val_masks"]
-    train_paths = ["..\\dataSet\\train_cts", "..\\dataSet\\val_cts"]         
-    
-    #mohammad path
-    #paths = ["..\dataSet\ct_scans", "..\dataSet\masks"]
-    
-    #test path
-    #paths = ["..\\dataSet\\masks"]
+    image_paths = ["..\\dataSet\\train_cts", "..\\dataSet\\val_cts"]
 
-    for path in train_paths:
+    # mohammad path
+    # paths = ["..\dataSet\ct_scans", "..\dataSet\masks"]
+
+    # test path
+    # paths = ["..\\dataSet\\masks"]
+
+    for path in image_paths:
         print("path to canvert is: " + path)
         data = nii2npy(path)
         save_path = os.path.join("converted_dataset", path.split("\\")[-1])
-        data.convert(dir_name=save_path, isMask=False)
+        data.convert(dir_name=save_path, isMask=False, extend = True)
 
     for path in mask_paths:
         print("path to canvert is: " + path)
         data = nii2npy(path)
         save_path = os.path.join("converted_dataset", path.split("\\")[-1])
-        data.convert(dir_name=save_path, isMask=True)
+        data.convert(dir_name=save_path, isMask=True, extend = True)

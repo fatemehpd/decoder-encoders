@@ -17,7 +17,7 @@ class CTDataset(Dataset):
         self,
         image_dir: str,
         mask_dir: str,
-        resize=True,
+        resize=False,
         resize_size: tuple[int, int] = (128, 128),
     ) -> None:
         """_summary_
@@ -56,8 +56,8 @@ class CTDataset(Dataset):
 
         """because of 3D structure in pytorch we should make sure that
         input dimensions are equal to 5"""
-        image = torch.unsqueeze(image, dim=1).float()
-        mask = torch.unsqueeze(mask, dim=1).float()
+        # image = torch.unsqueeze(image, dim=1).float()
+        # mask = torch.unsqueeze(mask, dim=1).float()
 
         if self.resize:
             image = (
@@ -71,9 +71,9 @@ class CTDataset(Dataset):
             mask = torch.round(mask / 255.0)  # make sure indexes are 1 and 0
 
         # NOTE: change below code proportionally to your dataset and your goal
-        mask = torch.cat((mask, 1 - mask), dim=1)
+        mask = torch.cat((mask, 1 - mask), dim=0)
 
-        return image, mask
+        return image.float(), mask
 
 
 # TODO: add proper tets function

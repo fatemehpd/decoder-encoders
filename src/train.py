@@ -22,6 +22,7 @@ NUM_EPOCHS = 5000
 NUM_WORKERS = 2
 IMAGE_HEIGHT = 512
 IMAGE_WIDTH = 512
+BATCH_SIZE = 8
 PIN_MEMORY = True
 LOAD_MODEL = False
 TRAIN_IMG_DIR = "./converted_dataset/train_cts"
@@ -79,6 +80,7 @@ def main():
         TRAIN_MASK_DIR,
         VAL_IMG_DIR,
         VAL_MASK_DIR,
+        BATCH_SIZE,
         NUM_WORKERS,
         PIN_MEMORY,
     )
