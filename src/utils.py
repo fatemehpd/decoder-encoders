@@ -24,14 +24,14 @@ def load_checkpoint(checkpoint, model):
 
 
 def get_loaders(
-    train_dir:str,
-    train_maskdir:str,
-    val_dir:str,
-    val_maskdir:str,
-    batch_size:int,
-    num_workers:int=4,
-    pin_memory:bool=True,
-    shuffle:bool=True
+    train_dir: str,
+    train_maskdir: str,
+    val_dir: str,
+    val_maskdir: str,
+    batch_size: int,
+    num_workers: int = 4,
+    pin_memory: bool = True,
+    shuffle: bool = True
 ):
     train_ds = CTDataset(image_dir=train_dir, mask_dir=train_maskdir)
     train_loader = DataLoader(
@@ -83,7 +83,8 @@ def save_predictions_as_imgs(
 
     val_losses.append(np.average(losses))
     np.save(
-        os.path.join(os.path.dirname(__file__), "..\\losses\\val_losses"), val_losses
+        os.path.join(os.path.dirname(__file__),
+                     "..\\losses\\val_losses"), val_losses
     )
 
     model.train()

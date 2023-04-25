@@ -17,6 +17,7 @@ import os
 import nibabel as nib
 import glob
 import numpy as np
+from math import ceil
 
 
 class nii2npy:
@@ -62,6 +63,8 @@ class nii2npy:
         dir_name="converted_dataset",
         isMask=False,
         extend=False,
+        crop=False,
+        crop_size=128
     ):
         """convert and save nifti as numpy array
 
@@ -92,7 +95,18 @@ class nii2npy:
             name = self._get_name(path)
             if extend:
                 for i in range(ct.shape[-1]):
-                    np.save(os.path.join(save_to, name + "_" + str(i)), ct[:, :, i])
+                    np.save(os.path.join(save_to, name +
+                            "_" + str(i)), ct[:, :, i])
+            elif crop:
+                length = ceil(max(ct.shape)/crop_size)
+                for i in range(length):
+                    for j in range(length):
+
+                        np.save(os.path.join(
+                            save_to,
+                            name + "_" + str(i)+"_"+str(j)),
+                            ct[crop_size*i:crop_size*(i+1),
+                               crop_size*j:crop_size*(j+1), :])
             else:
                 np.save(os.path.join(save_to, name), ct)
                 print(str(name) + "   " + str(ct.max()) + "   " + str(ct.min()))
@@ -113,10 +127,10 @@ if __name__ == "__main__":
         print("path to canvert is: " + path)
         data = nii2npy(path)
         save_path = os.path.join("converted_dataset", path.split("\\")[-1])
-        data.convert(dir_name=save_path, isMask=False, extend = True)
+        data.convert(dir_name=save_path, isMask=False, crop=True)
 
     for path in mask_paths:
         print("path to canvert is: " + path)
         data = nii2npy(path)
         save_path = os.path.join("converted_dataset", path.split("\\")[-1])
-        data.convert(dir_name=save_path, isMask=True, extend = True)
+        data.convert(dir_name=save_path, isMask=True, crop=True)
