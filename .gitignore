@@ -1,5 +1,6 @@
 #ignore this directory
 dataSet/
+dataSets/
 converted_dataset/
 saved_images/
 .vscode/
@@ -7,3 +8,4 @@ __pycache__/
 **/my_checkpoint.pth.tar
 New_folder/
 losses/
+src/__pycache__/

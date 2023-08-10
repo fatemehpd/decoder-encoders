@@ -1,0 +1,36 @@
+{
+    "resnet50": {
+        "model_name": "resnet50",
+        "train_path": "",
+        "test_path": "",
+        "validation_path": "",
+        "epochs": 100,
+        "base_lr": 0.001,
+        "GAMMA": 0.1,
+        "lr_list": [],
+        "lr_steps": [],
+        "frozen_layer": [
+            "conv1",
+            "bn1",
+            "layer1",
+            "layer2",
+            "layer3",
+            "classifier"
+        ],
+        "partial_frozen_layer": [
+            "layer4"
+        ],
+        "num_of_frozen_sub_layer": 10,
+        "loss_function": "",
+        "optimizer": "Adam",
+        "batch_size": 32,
+        "device": "'cuda' if torch.cuda.is_available() else 'cpu'",
+        "num_workers": 2,
+        "original_height": 512,
+        "original_width": 512,
+        "pin_memory": "True",
+        "load_model": "False",
+        "check_point_path": "my_checkpoint.pth.tar",
+        "save_step": 10
+    }
+}

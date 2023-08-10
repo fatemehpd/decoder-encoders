@@ -17,9 +17,12 @@ class CTDataset(Dataset):
         self,
         image_dir: str,
         mask_dir: str,
-        resize=False,
-        resize_size: tuple[int, int] = (128, 128),
+        resize: bool = False,
+        gray2RGB: bool = True,
+        classification:bool = False,
+        resize_size: tuple[int, int] = (128, 128)
     ) -> None:
+        #NOTE: this class is for loading slices not whole ct image
         """_summary_
 
         Args:
@@ -35,8 +38,11 @@ class CTDataset(Dataset):
         self.images = os.listdir(image_dir)
         self.maskes = os.listdir(mask_dir)
         self.resize = resize
+        self.gray2RGB = gray2RGB
+        self.classification = classification
         self.resize_size = resize_size
-
+        self.preprocess = TF.Compose([transforms.ToTensor()])
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         if resize:
             self.resize_func = TF.Resize(size=resize_size)
 
@@ -46,34 +52,35 @@ class CTDataset(Dataset):
     def __getitem__(self, index: int) -> torch.Tensor:
         img_path = os.path.join(self.image_dir, self.images[index])
         mask_path = os.path.join(self.mask_dir, self.maskes[index])
+        
+        # NOTE: data will cast to uint8
+        image = np.round(np.load(img_path)).astype(np.uint8)
+        mask = np.round(np.load(mask_path)).astype(np.uint8)
 
-        image = np.load(img_path)
-        mask = np.load(mask_path)
-
-        """convert images from numpy to tensor"""
-        image = transforms.Compose([transforms.ToTensor()])(image)
-        mask = transforms.Compose([transforms.ToTensor()])(mask)
-
-        """because of 3D structure in pytorch we should make sure that
-        input dimensions are equal to 5"""
-        # image = torch.unsqueeze(image, dim=1).float()
-        # mask = torch.unsqueeze(mask, dim=1).float()
+        image = self.preprocess(image)
+        mask = self.preprocess(mask)
 
         if self.resize:
-            image = (
-                self.resize_func(image) / 255.0
-            )  # normalize value between 0 and 1
-            mask = torch.round(
-                self.resize_func(mask) / 255.0
-            )  # make sure indexes are 1 and 0
+            image = self.resize_func(image)
+            mask = self.resize_func(mask)
+
+        if len(image.shape)==2:
+                image = torch.unsqueeze(image, dim=0)
+                
+        if not self.classification:
+            if len(mask.shape)==2:
+                mask = torch.unsqueeze(mask, dim=0)  
+            # NOTE: change below code proportionally to your dataset and your goal
+            mask = torch.cat((mask, 1 - mask), dim=0)
         else:
-            image = image / 255.0  # normalize value between 0 and 1
-            mask = torch.round(mask / 255.0)  # make sure indexes are 1 and 0
-
-        # NOTE: change below code proportionally to your dataset and your goal
-        mask = torch.cat((mask, 1 - mask), dim=0)
-
-        return image.float(), mask
-
-
-# TODO: add proper tets function
+            if mask.max() == 1:
+                mask= torch.tensor(1)
+            else:
+                mask=torch.tensor(0)
+        if self.gray2RGB: 
+            # NOTE: image is a slice of brain
+            if len(image.shape)==2:
+                image = torch.unsqueeze(image, dim=1)
+            image = torch.cat((image, image, image), dim=0)
+        
+        return image.to(self.device), mask.to(self.device)
