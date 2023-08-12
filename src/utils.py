@@ -87,3 +87,5 @@ def save_predictions_as_imgs(
     )
 
     model.train()
+def test():
+    print("test")

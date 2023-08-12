@@ -1,6 +1,6 @@
 {
-    "resnet50": {
-        "model_name": "resnet50",
+    "resnet152": {
+        "model_name": "resnet512",
         "train_path": "",
         "test_path": "",
         "validation_path": "",
